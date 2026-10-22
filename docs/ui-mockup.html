@@ -1,0 +1,1259 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DBML Studio · UI 设计稿 v0.1</title>
+<style>
+  :root {
+    --stage-bg: #e8ecf3;
+    --stage-glow: rgba(99, 102, 241, .22);
+    --window: #f7f8fb;
+    --panel: #ffffff;
+    --panel-2: #f2f4f8;
+    --panel-3: #e9edf4;
+    --border: #e4e8f0;
+    --border-strong: #d5dbe6;
+    --text: #1b2230;
+    --text-2: #465063;
+    --muted: #7a8496;
+    --faint: #a2aab8;
+    --accent: #4f46e5;
+    --accent-2: #6366f1;
+    --accent-soft: #eef0ff;
+    --accent-border: #c8cbff;
+    --canvas: #f8f9fc;
+    --dot: #d7dce7;
+    --edge: #9aa4b6;
+    --ok: #0e9f6e;
+    --warning: #b7791f;
+    --warning-bg: #fdf6e7;
+    --danger: #d64545;
+    --purple: #7c3aed;
+    --code-keyword: #4f46e5;
+    --code-name: #0b7285;
+    --code-type: #0f8b6c;
+    --code-type-enum: #7c3aed;
+    --code-set: #b45309;
+    --code-str: #2f855a;
+    --code-color: #d97706;
+    --code-val: #2563eb;
+    --code-plain: #2b3445;
+    --line-no: #a5adbb;
+    --line-active: #eef0ff;
+    --shadow: 0 28px 80px rgba(23, 32, 56, .22), 0 2px 6px rgba(23, 32, 56, .06);
+    --card-shadow: 0 8px 22px rgba(30, 41, 59, .09), 0 1px 3px rgba(30, 41, 59, .06);
+    --tint-opacity: .075;
+    --scrollbar: #cfd5e1;
+  }
+
+  [data-theme="dark"] {
+    --stage-bg: #0b0e15;
+    --stage-glow: rgba(99, 102, 241, .2);
+    --window: #11151e;
+    --panel: #171c27;
+    --panel-2: #1e2432;
+    --panel-3: #252c3c;
+    --border: #293144;
+    --border-strong: #364058;
+    --text: #e7ebf4;
+    --text-2: #b6bfd0;
+    --muted: #8d98ac;
+    --faint: #657087;
+    --accent: #8b8cf8;
+    --accent-2: #9a9bfb;
+    --accent-soft: #23264a;
+    --accent-border: #3a3d7a;
+    --canvas: #121722;
+    --dot: #2a3245;
+    --edge: #5e6a81;
+    --ok: #34d399;
+    --warning: #e0a94a;
+    --warning-bg: #2a2316;
+    --danger: #f87171;
+    --purple: #b794f6;
+    --code-keyword: #a5b4fc;
+    --code-name: #67e8f9;
+    --code-type: #6ee7b7;
+    --code-type-enum: #c4b5fd;
+    --code-set: #fbbf24;
+    --code-str: #86efac;
+    --code-color: #fcd34d;
+    --code-val: #93c5fd;
+    --code-plain: #d7deea;
+    --line-no: #5b6578;
+    --line-active: #23264a;
+    --shadow: 0 30px 90px rgba(0, 0, 0, .55), 0 2px 8px rgba(0, 0, 0, .35);
+    --card-shadow: 0 12px 28px rgba(0, 0, 0, .35), 0 1px 3px rgba(0, 0, 0, .3);
+    --tint-opacity: .16;
+    --scrollbar: #374158;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { min-height: 100%; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    color: var(--text);
+    background:
+      radial-gradient(1100px 620px at 24% -12%, var(--stage-glow), transparent 62%),
+      radial-gradient(900px 600px at 92% 110%, rgba(14, 165, 233, .12), transparent 60%),
+      var(--stage-bg);
+    -webkit-font-smoothing: antialiased;
+    transition: background .25s ease, color .2s ease;
+  }
+  button, input, textarea { font: inherit; color: inherit; }
+  button { background: none; border: 0; padding: 0; cursor: pointer; }
+  svg { display: block; }
+  input, textarea { outline: none; }
+  textarea { resize: none; }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-thumb { background: var(--scrollbar); border-radius: 99px; border: 2px solid transparent; background-clip: padding-box; }
+  ::-webkit-scrollbar-track { background: transparent; }
+
+  .stage {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: clamp(10px, 2vw, 26px);
+  }
+  .window {
+    width: min(1520px, 100%);
+    height: min(890px, calc(100vh - 28px));
+    min-height: 600px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--window);
+    border: 1px solid rgba(255, 255, 255, .5);
+    border-radius: 15px;
+    box-shadow: var(--shadow);
+    transition: background .2s ease, border-color .2s ease;
+  }
+  [data-theme="dark"] .window { border-color: var(--border); }
+
+  /* ── Titlebar ─────────────────────────────────────────────── */
+  .titlebar {
+    height: 54px;
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0 14px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    position: relative;
+    z-index: 20;
+  }
+  .traffic { display: flex; gap: 7px; width: 52px; flex: none; }
+  .traffic i { width: 11px; height: 11px; border-radius: 50%; display: block; }
+  .traffic i:nth-child(1) { background: #ff5f57; }
+  .traffic i:nth-child(2) { background: #febc2e; }
+  .traffic i:nth-child(3) { background: #28c840; }
+  [data-theme="dark"] .traffic i { filter: saturate(.7) brightness(.9); }
+
+  .brand { display: flex; align-items: center; gap: 8px; flex: none; }
+  .logo {
+    width: 28px; height: 28px; border-radius: 8px;
+    display: grid; place-items: center;
+    color: #fff;
+    background: linear-gradient(145deg, #6d6bf2, #4338ca);
+    box-shadow: 0 4px 10px rgba(79, 70, 229, .3), inset 0 1px 0 rgba(255,255,255,.35);
+  }
+  .brand-name { font-size: 13px; font-weight: 680; letter-spacing: -.2px; white-space: nowrap; }
+  .pill-local {
+    font-size: 9px; font-weight: 650; color: var(--accent);
+    background: var(--accent-soft); border: 1px solid var(--accent-border);
+    padding: 2px 6px; border-radius: 99px; letter-spacing: .02em;
+  }
+
+  .titlebar-center { flex: 1; display: flex; justify-content: center; min-width: 0; }
+  .doc-chip {
+    display: flex; align-items: center; gap: 7px;
+    height: 30px; padding: 0 11px;
+    border: 1px solid var(--border); border-radius: 8px;
+    background: var(--panel-2);
+    color: var(--text-2); font-size: 11.5px; font-weight: 520;
+    max-width: 100%;
+  }
+  .doc-chip .doc-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .doc-chip .saved { display: inline-flex; align-items: center; gap: 3px; color: var(--muted); font-size: 10px; padding-left: 2px; }
+  .doc-chip .saved svg { color: var(--ok); }
+
+  .title-actions { display: flex; align-items: center; gap: 7px; flex: none; margin-left: auto; }
+  .icon-btn {
+    width: 30px; height: 30px; border-radius: 8px;
+    display: inline-grid; place-items: center;
+    color: var(--muted);
+    border: 1px solid transparent;
+    transition: background .15s ease, color .15s ease, border-color .15s ease;
+  }
+  .icon-btn:hover { background: var(--panel-2); color: var(--text-2); border-color: var(--border); }
+  .icon-btn:focus-visible, .btn:focus-visible, .segmented button:focus-visible, .view-switch button:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 2px;
+  }
+  .icon-group { display: flex; align-items: center; gap: 1px; padding-right: 4px; border-right: 1px solid var(--border); }
+
+  .segmented {
+    display: flex; align-items: center; gap: 2px;
+    padding: 3px; height: 32px;
+    border: 1px solid var(--border); border-radius: 9px;
+    background: var(--panel-2);
+  }
+  .segmented button {
+    height: 24px; padding: 0 9px; border-radius: 6px;
+    font-size: 10.5px; font-weight: 560; color: var(--muted);
+    white-space: nowrap;
+  }
+  .segmented button:hover { color: var(--text-2); }
+  .segmented button.active {
+    color: var(--text); background: var(--panel);
+    box-shadow: 0 1px 3px rgba(20, 30, 50, .12);
+  }
+
+  .btn {
+    height: 32px; padding: 0 11px;
+    display: inline-flex; align-items: center; gap: 6px;
+    border-radius: 8px; border: 1px solid var(--border);
+    background: var(--panel); color: var(--text-2);
+    font-size: 11px; font-weight: 560; white-space: nowrap;
+    transition: background .15s ease, border-color .15s ease, color .15s ease, transform .1s ease;
+  }
+  .btn:hover { background: var(--panel-2); border-color: var(--border-strong); color: var(--text); }
+  .btn:active { transform: translateY(1px); }
+  .btn.primary {
+    color: #fff; border-color: transparent;
+    background: linear-gradient(180deg, #6260ea, #4f46e5);
+    box-shadow: 0 4px 12px rgba(79, 70, 229, .28), inset 0 1px 0 rgba(255,255,255,.18);
+  }
+  .btn.primary:hover { background: linear-gradient(180deg, #6b69ee, #554ce6); color: #fff; }
+
+  .main {
+    flex: 1; min-height: 0;
+    display: grid;
+    grid-template-columns: 220px 400px minmax(0, 1fr);
+    background: var(--window);
+  }
+  .main.mode-editor { grid-template-columns: 220px minmax(0, 1fr); }
+  .main.mode-editor .canvas-pane { display: none; }
+  .main.mode-canvas { grid-template-columns: 220px minmax(0, 1fr); }
+  .main.mode-canvas .editor-pane { display: none; }
+  .sidebar, .editor-pane, .canvas-pane { min-height: 0; }
+
+  /* ── Sidebar ──────────────────────────────────────────────── */
+  .sidebar {
+    min-width: 0;
+    display: flex; flex-direction: column;
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+  }
+  .search-wrap { padding: 12px 12px 8px; }
+  .search {
+    height: 32px; display: flex; align-items: center; gap: 7px;
+    padding: 0 9px;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 8px; color: var(--muted);
+  }
+  .search:focus-within { border-color: var(--accent-border); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 10%, transparent); }
+  .search input {
+    flex: 1; min-width: 0; border: 0; background: transparent;
+    font-size: 11px; color: var(--text);
+  }
+  .search input::placeholder { color: var(--faint); }
+  .search kbd {
+    font-family: inherit; font-size: 9px; color: var(--muted);
+    border: 1px solid var(--border-strong); border-radius: 4px;
+    padding: 1px 4px; background: var(--panel);
+  }
+
+  .side-scroll { flex: 1; overflow: auto; padding: 2px 8px 10px; }
+  .side-section { margin-top: 12px; }
+  .section-head {
+    height: 24px; display: flex; align-items: center; gap: 5px;
+    padding: 0 5px; color: var(--faint);
+    font-size: 9px; font-weight: 680; letter-spacing: .09em;
+    text-transform: uppercase;
+  }
+  .section-head .chev { color: var(--faint); display: grid; place-items: center; }
+  .section-head .count {
+    margin-left: auto; font-size: 9px; letter-spacing: 0;
+    color: var(--faint); font-weight: 600;
+    background: var(--panel-2); border: 1px solid var(--border);
+    padding: 0 5px; border-radius: 99px; line-height: 15px;
+  }
+  .section-head .head-add {
+    width: 20px; height: 20px; display: grid; place-items: center;
+    border-radius: 5px; color: var(--muted);
+  }
+  .section-head .head-add:hover { background: var(--panel-2); color: var(--text); }
+  .side-item {
+    width: 100%; height: 29px;
+    display: flex; align-items: center; gap: 7px;
+    padding: 0 8px; border-radius: 7px;
+    color: var(--text-2); font-size: 11.5px; text-align: left;
+    position: relative;
+  }
+  .side-item:hover { background: var(--panel-2); color: var(--text); }
+  .side-item.active { background: var(--accent-soft); color: var(--accent); font-weight: 580; }
+  .side-item.active::before {
+    content: ""; position: absolute; left: 0; top: 7px; bottom: 7px;
+    width: 2px; border-radius: 2px; background: var(--accent);
+  }
+  .side-item .ico { color: var(--muted); flex: none; }
+  .side-item.active .ico { color: var(--accent); }
+  .side-item .label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .side-item .num { font-size: 9.5px; color: var(--faint); font-variant-numeric: tabular-nums; }
+  .side-item .enum-dot { width: 6px; height: 6px; border-radius: 2px; background: var(--purple); opacity: .65; }
+  .side-item .group-dot { width: 7px; height: 7px; border-radius: 2px; border: 1.5px solid var(--muted); opacity: .7; }
+
+  .sidebar-foot { flex: none; padding: 10px 12px 12px; border-top: 1px solid var(--border); }
+  .new-table {
+    width: 100%; height: 33px;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    border: 1px dashed var(--border-strong); border-radius: 8px;
+    color: var(--text-2); font-size: 11px; font-weight: 560;
+    background: var(--panel-2);
+  }
+  .new-table:hover { border-color: var(--accent-border); color: var(--accent); background: var(--accent-soft); }
+  .local-note {
+    margin-top: 9px; display: flex; align-items: center; justify-content: center; gap: 5px;
+    font-size: 9px; color: var(--faint);
+  }
+  .local-note i { width: 5px; height: 5px; border-radius: 50%; background: var(--ok); }
+
+  /* ── Editor ───────────────────────────────────────────────── */
+  .editor-pane {
+    min-width: 0;
+    display: flex; flex-direction: column;
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+  }
+  .editor-head {
+    height: 39px; flex: none;
+    display: flex; align-items: center; gap: 8px;
+    padding: 0 12px 0 14px;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel);
+  }
+  .lang-badge {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 9px; font-weight: 650; letter-spacing: .02em;
+    color: var(--accent); background: var(--accent-soft);
+    border: 1px solid var(--accent-border); border-radius: 5px;
+    padding: 2px 5px; line-height: 14px;
+  }
+  .editor-meta { font-size: 9.5px; color: var(--faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .editor-head-actions { margin-left: auto; display: flex; align-items: center; gap: 2px; }
+  .mini-action {
+    height: 24px; padding: 0 7px; border-radius: 6px;
+    display: inline-flex; align-items: center; gap: 4px;
+    color: var(--muted); font-size: 9.5px;
+  }
+  .mini-action:hover { background: var(--panel-2); color: var(--text-2); }
+
+  .editor-scroll { flex: 1; min-height: 0; overflow: auto; padding: 11px 0 14px; background: var(--panel); }
+  .code-line {
+    display: flex; align-items: center;
+    height: 21px; min-height: 21px;
+    padding-right: 14px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+    font-size: 11.2px; line-height: 21px;
+    color: var(--code-plain);
+    position: relative;
+    white-space: pre;
+  }
+  .code-line:hover { background: color-mix(in srgb, var(--panel-2) 68%, transparent); }
+  .code-line.active { background: var(--line-active); }
+  .code-line.active::before {
+    content: ""; position: absolute; left: 0; top: 0; bottom: 0;
+    width: 2px; background: var(--accent);
+  }
+  .code-line.active .ln { color: var(--accent); font-weight: 650; }
+  .ln {
+    width: 42px; flex: none; padding-right: 12px;
+    text-align: right; color: var(--line-no);
+    font-size: 9.5px; user-select: none;
+    font-variant-numeric: tabular-nums;
+  }
+  .code-text { display: block; }
+  .tok-kw { color: var(--code-keyword); font-weight: 600; }
+  .tok-name { color: var(--code-name); font-weight: 600; }
+  .tok-type { color: var(--code-type); }
+  .tok-type-enum { color: var(--code-type-enum); }
+  .tok-set { color: var(--code-set); }
+  .tok-str { color: var(--code-str); }
+  .tok-color { color: var(--code-color); }
+  .tok-val { color: var(--code-val); }
+  .tok-punc { color: var(--muted); }
+  .code-text .warn {
+    text-decoration: underline wavy var(--warning);
+    text-decoration-skip-ink: none;
+    text-underline-offset: 3px;
+  }
+
+  .problems-bar {
+    flex: none; min-height: 33px;
+    display: flex; align-items: center; gap: 6px;
+    padding: 0 11px;
+    border-top: 1px solid var(--border);
+    background: var(--panel-2);
+    font-size: 9.5px; color: var(--muted);
+    white-space: nowrap; overflow: hidden;
+  }
+  .problems-bar .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--warning); flex: none; }
+  .problems-bar strong { color: var(--text-2); font-weight: 600; }
+  .problems-bar .sep { color: var(--faint); }
+  .problem-msg {
+    margin-left: 3px; overflow: hidden; text-overflow: ellipsis;
+    color: var(--muted); font-size: 9.5px;
+  }
+  .quickfix {
+    margin-left: auto; flex: none;
+    color: var(--accent); font-size: 9px; font-weight: 600;
+    background: var(--accent-soft); border: 1px solid var(--accent-border);
+    padding: 2px 6px; border-radius: 5px;
+  }
+  .quickfix:hover { filter: brightness(.97); }
+  .problems-bar .chev { margin-left: 2px; color: var(--faint); flex: none; }
+
+  /* ── Canvas ───────────────────────────────────────────────── */
+  .canvas-pane { position: relative; min-width: 0; background: var(--canvas); overflow: hidden; }
+  .canvas-viewport {
+    position: absolute; inset: 0;
+    background-color: var(--canvas);
+    background-image: radial-gradient(circle, var(--dot) 1px, transparent 1px);
+    background-size: 20px 20px;
+    overflow: hidden;
+  }
+  .canvas-viewport::after {
+    content: ""; position: absolute; inset: 0; pointer-events: none;
+    background:
+      radial-gradient(700px 380px at 45% 30%, rgba(255,255,255,.55), transparent 75%),
+      linear-gradient(180deg, transparent 80%, rgba(20, 30, 50, .035));
+  }
+  [data-theme="dark"] .canvas-viewport::after {
+    background:
+      radial-gradient(700px 380px at 45% 30%, rgba(80, 95, 140, .12), transparent 75%),
+      linear-gradient(180deg, transparent 80%, rgba(0, 0, 0, .16));
+  }
+
+  .canvas-badge {
+    position: absolute; left: 14px; top: 14px; z-index: 8;
+    display: inline-flex; align-items: center; gap: 6px;
+    height: 26px; padding: 0 9px;
+    border: 1px solid var(--border); border-radius: 7px;
+    background: color-mix(in srgb, var(--panel) 88%, transparent);
+    backdrop-filter: blur(8px);
+    color: var(--muted); font-size: 9.5px; font-weight: 550;
+    box-shadow: 0 2px 8px rgba(30, 41, 59, .05);
+  }
+  .canvas-badge strong { color: var(--text-2); font-weight: 600; }
+  .canvas-badge .badge-sep { width: 1px; height: 11px; background: var(--border); }
+
+  .diagram {
+    position: absolute; left: 0; top: 50%;
+    width: 840px; height: 560px;
+    transform: translateY(-50%) scale(.88);
+    transform-origin: left center;
+  }
+  .edges { position: absolute; inset: 0; width: 840px; height: 560px; overflow: visible; }
+  .edge { fill: none; stroke: var(--edge); stroke-width: 1.3; stroke-linecap: round; opacity: .95; }
+  .edge.dim { opacity: .55; }
+  .edge.active { stroke: var(--accent); stroke-width: 1.7; }
+  .edge-label { fill: var(--muted); font-size: 8.5px; font-weight: 600; font-family: inherit; }
+  .edge-label.active { fill: var(--accent); }
+  .anchor-dot { fill: var(--canvas); stroke: var(--edge); stroke-width: 1.2; }
+  .anchor-dot.active { fill: var(--accent-soft); stroke: var(--accent); }
+  .warn-anchor { fill: var(--warning); stroke: var(--panel); stroke-width: 1.5; }
+
+  .table-card {
+    position: absolute;
+    border: 1px solid var(--border-strong);
+    border-radius: 9px;
+    background: var(--panel);
+    box-shadow: var(--card-shadow);
+    overflow: hidden;
+    user-select: none;
+    transition: box-shadow .16s ease, border-color .16s ease, transform .16s ease;
+  }
+  .table-card::before {
+    content: ""; position: absolute; left: 0; right: 0; top: 0; height: 2px;
+    background: var(--table-color); z-index: 2;
+  }
+  .table-card:hover { border-color: var(--border-strong); box-shadow: 0 12px 28px rgba(30, 41, 59, .13), 0 1px 3px rgba(30, 41, 59, .06); }
+  .table-card.selected {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 45%, transparent), 0 18px 38px rgba(30, 41, 59, .16);
+  }
+  .table-head {
+    position: relative;
+    height: 40px;
+    display: flex; align-items: center; gap: 7px;
+    padding: 0 9px;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel-2);
+    overflow: hidden;
+  }
+  .table-head::before {
+    content: ""; position: absolute; inset: 0;
+    background: var(--table-color); opacity: var(--tint-opacity);
+  }
+  .table-head > * { position: relative; }
+  .table-schema {
+    font-size: 8px; font-weight: 650; letter-spacing: .02em;
+    color: var(--muted); text-transform: uppercase;
+    background: color-mix(in srgb, var(--panel) 60%, transparent);
+    border: 1px solid var(--border);
+    border-radius: 4px; padding: 1px 4px; line-height: 12px;
+  }
+  .table-name {
+    font-size: 11.8px; font-weight: 660; color: var(--text);
+    letter-spacing: -.15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .table-menu {
+    margin-left: auto; width: 20px; height: 20px;
+    display: grid; place-items: center;
+    border-radius: 5px; color: var(--muted); opacity: 0;
+  }
+  .table-card:hover .table-menu, .table-card.selected .table-menu { opacity: 1; }
+  .table-menu:hover { background: color-mix(in srgb, var(--panel) 82%, transparent); color: var(--text); }
+  .selected-tag {
+    margin-left: auto; font-size: 7.5px; font-weight: 700; letter-spacing: .05em;
+    color: var(--accent); background: var(--accent-soft);
+    border: 1px solid var(--accent-border); border-radius: 99px;
+    padding: 1px 5px; line-height: 12px; flex: none;
+  }
+  .selected-tag + .table-menu { margin-left: 0; }
+
+  .table-body { padding: 3px 0 4px; }
+  .col-row {
+    height: 27px;
+    display: flex; align-items: center; gap: 6px;
+    padding: 0 9px;
+    position: relative;
+    font-size: 10.2px;
+  }
+  .col-row:hover { background: var(--panel-2); }
+  .col-row.highlight { background: var(--accent-soft); }
+  .col-row.highlight::before {
+    content: ""; position: absolute; left: 0; top: 4px; bottom: 4px;
+    width: 2px; background: var(--accent); border-radius: 2px;
+  }
+  .col-flag { width: 13px; flex: none; display: grid; place-items: center; color: var(--faint); }
+  .col-flag.pk { color: #c08a1c; }
+  .col-flag.fk { color: var(--accent); }
+  .col-name { color: var(--text-2); font-weight: 520; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .col-row.highlight .col-name { color: var(--accent); font-weight: 600; }
+  .col-type {
+    margin-left: auto; color: var(--muted); font-size: 9.2px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    white-space: nowrap;
+  }
+  .col-type.enum { color: var(--purple); }
+  .mini-badge {
+    font-size: 7px; font-weight: 700; line-height: 11px;
+    padding: 0 3px; border-radius: 3px; letter-spacing: .02em;
+    flex: none;
+  }
+  .mini-badge.uq { color: var(--muted); border: 1px solid var(--border-strong); background: var(--panel-2); }
+  .mini-badge.nn { color: var(--muted); }
+  .mini-badge.warn { color: var(--warning); background: var(--warning-bg); border: 1px solid color-mix(in srgb, var(--warning) 24%, transparent); }
+  .table-foot {
+    height: 23px;
+    display: flex; align-items: center; gap: 5px;
+    margin-top: 2px; padding: 0 10px;
+    border-top: 1px dashed var(--border);
+    color: var(--faint); font-size: 8.5px;
+    white-space: nowrap; overflow: hidden;
+  }
+  .table-foot svg { flex: none; color: var(--faint); }
+  .table-foot .foot-sep { width: 2px; height: 2px; border-radius: 50%; background: var(--faint); flex: none; }
+
+  .users { left: 20px; top: 56px; width: 214px; --table-color: #0ea5e9; }
+  .orders { left: 300px; top: 66px; width: 218px; --table-color: #6366f1; }
+  .order-items { left: 20px; top: 356px; width: 222px; --table-color: #f59e0b; }
+  .products { left: 300px; top: 356px; width: 218px; --table-color: #10b981; }
+
+  /* ── Inspector ────────────────────────────────────────────── */
+  .inspector {
+    position: absolute; right: 14px; top: 14px; bottom: auto;
+    width: 272px; max-height: calc(100% - 142px);
+    z-index: 10;
+    display: flex; flex-direction: column;
+    border: 1px solid var(--border-strong);
+    border-radius: 11px;
+    background: color-mix(in srgb, var(--panel) 93%, transparent);
+    backdrop-filter: blur(16px);
+    box-shadow: 0 18px 44px rgba(20, 30, 50, .16), 0 1px 3px rgba(20, 30, 50, .06);
+    overflow: auto;
+    scrollbar-width: none;
+  }
+  .inspector::-webkit-scrollbar { display: none; }
+  .inspector-head {
+    flex: none;
+    display: flex; align-items: flex-start; gap: 8px;
+    padding: 12px 10px 9px 13px;
+    border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; z-index: 3;
+    background: color-mix(in srgb, var(--panel) 96%, transparent);
+    backdrop-filter: blur(16px);
+  }
+  .inspector-title { flex: 1; min-width: 0; }
+  .eyebrow {
+    font-size: 7.5px; font-weight: 700; color: var(--faint);
+    letter-spacing: .1em; text-transform: uppercase;
+    display: flex; align-items: center; gap: 5px;
+  }
+  .eyebrow .accent-dot { width: 6px; height: 6px; border-radius: 2px; background: var(--table-color, var(--accent)); }
+  .inspector-title h2 {
+    margin: 2px 0 0; font-size: 14px; font-weight: 680; letter-spacing: -.25px;
+    color: var(--text); line-height: 18px;
+  }
+  .inspector-actions { display: flex; gap: 1px; margin-top: -2px; }
+  .inspector-actions .icon-btn { width: 24px; height: 24px; border-radius: 6px; }
+  .inspector-body { padding: 10px 13px 12px; }
+  .field { margin-bottom: 9px; }
+  .field label {
+    display: block; font-size: 8px; font-weight: 650;
+    color: var(--faint); letter-spacing: .06em; text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  .input, .textarea, .select-look {
+    width: 100%;
+    border: 1px solid var(--border); border-radius: 7px;
+    background: var(--panel-2); color: var(--text-2);
+    font-size: 10.5px; padding: 0 8px; height: 29px;
+    display: flex; align-items: center;
+  }
+  .input:focus, .textarea:focus { border-color: var(--accent-border); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 9%, transparent); }
+  .textarea { height: 43px; padding: 6px 8px; line-height: 1.45; font-family: inherit; }
+  .select-look { justify-content: space-between; gap: 6px; }
+  .select-look svg { color: var(--faint); flex: none; }
+  .field-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+  .color-field { display: flex; align-items: center; gap: 7px; height: 29px; padding: 0 7px; border: 1px solid var(--border); border-radius: 7px; background: var(--panel-2); }
+  .swatch {
+    width: 15px; height: 15px; border-radius: 4px; flex: none;
+    background: #6366f1;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.3), 0 0 0 1px rgba(0,0,0,.08);
+  }
+  .color-code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 9px; color: var(--text-2); }
+  .color-change { margin-left: auto; color: var(--accent); font-size: 8.5px; font-weight: 600; }
+  .divider { height: 1px; background: var(--border); margin: 11px -13px 9px; }
+  .subhead {
+    display: flex; align-items: center; gap: 5px;
+    height: 22px; color: var(--faint);
+    font-size: 8px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase;
+  }
+  .subhead .count { font-size: 8px; color: var(--faint); font-weight: 600; letter-spacing: 0; }
+  .subhead .sub-action { margin-left: auto; width: 19px; height: 19px; display: grid; place-items: center; border-radius: 5px; color: var(--muted); }
+  .subhead .sub-action:hover { background: var(--panel-2); color: var(--accent); }
+  .mini-columns { display: flex; flex-direction: column; gap: 2px; margin-top: 2px; }
+  .mini-col {
+    height: 29px; display: flex; align-items: center; gap: 6px;
+    padding: 0 6px; border-radius: 6px;
+    color: var(--text-2); font-size: 10px;
+    position: relative;
+  }
+  .mini-col:hover { background: var(--panel-2); }
+  .mini-col.active { background: var(--accent-soft); color: var(--accent); }
+  .mini-col.active::before { content: ""; position: absolute; left: 0; top: 5px; bottom: 5px; width: 2px; border-radius: 2px; background: var(--accent); }
+  .mini-col .m-flag { width: 12px; display: grid; place-items: center; flex: none; color: var(--faint); }
+  .mini-col .m-flag.pk { color: #c08a1c; }
+  .mini-col .m-flag.fk { color: var(--accent); }
+  .mini-col .m-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mini-col .m-type { margin-left: auto; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 8.5px; color: var(--faint); }
+  .mini-col .m-warn { width: 12px; height: 12px; border-radius: 50%; display: grid; place-items: center; color: var(--warning); background: var(--warning-bg); flex: none; }
+  .rel-row {
+    display: flex; gap: 7px; align-items: flex-start;
+    padding: 7px 6px; border: 1px solid var(--border); border-radius: 7px;
+    background: var(--panel-2); margin-top: 2px;
+  }
+  .rel-dot { width: 7px; height: 7px; border-radius: 2px; background: var(--accent); margin-top: 3px; flex: none; }
+  .rel-title { font-size: 9.5px; color: var(--text-2); font-weight: 560; line-height: 1.4; }
+  .rel-title code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 8.5px; color: var(--accent); background: var(--accent-soft); padding: 1px 3px; border-radius: 3px; }
+  .rel-sub { margin-top: 2px; font-size: 8px; color: var(--faint); }
+  .inspector-foot {
+    flex: none;
+    display: flex; align-items: center; gap: 6px;
+    padding: 9px 13px;
+    border-top: 1px solid var(--border);
+    position: sticky; bottom: 0; z-index: 3;
+    background: color-mix(in srgb, var(--panel) 96%, transparent);
+    backdrop-filter: blur(16px);
+  }
+  .locate-btn {
+    flex: 1; height: 29px;
+    display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+    border: 1px solid var(--border); border-radius: 7px;
+    background: var(--panel-2); color: var(--text-2);
+    font-size: 9.5px; font-weight: 560;
+  }
+  .locate-btn:hover { border-color: var(--accent-border); color: var(--accent); background: var(--accent-soft); }
+  .danger-btn {
+    width: 29px; height: 29px; display: grid; place-items: center;
+    border: 1px solid var(--border); border-radius: 7px;
+    color: var(--muted); background: var(--panel-2);
+  }
+  .danger-btn:hover { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 30%, transparent); background: color-mix(in srgb, var(--danger) 7%, var(--panel-2)); }
+
+  /* ── Canvas chrome ────────────────────────────────────────── */
+  .canvas-toolbar {
+    position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%);
+    z-index: 9;
+    display: flex; align-items: center; gap: 1px;
+    height: 30px; padding: 0 4px;
+    border: 1px solid var(--border-strong); border-radius: 9px;
+    background: color-mix(in srgb, var(--panel) 92%, transparent);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 6px 18px rgba(30, 41, 59, .12);
+    white-space: nowrap;
+  }
+  .canvas-toolbar button {
+    min-width: 26px; height: 24px; padding: 0 5px;
+    display: grid; place-items: center;
+    border-radius: 6px; color: var(--muted); font-size: 13px;
+  }
+  .canvas-toolbar button:hover { background: var(--panel-2); color: var(--text); }
+  .canvas-toolbar .zoom-value { font-size: 8.5px; font-weight: 600; color: var(--text-2); font-variant-numeric: tabular-nums; }
+  .canvas-toolbar .tool-sep { width: 1px; height: 12px; background: var(--border); margin: 0 3px; flex: none; }
+  .canvas-toolbar .tool-hint {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 0 6px 0 3px; color: var(--faint); font-size: 8.5px;
+  }
+  .canvas-toolbar .tool-hint svg { color: var(--faint); flex: none; }
+
+  .minimap {
+    position: absolute; right: 14px; bottom: 14px; z-index: 9;
+    width: 150px; height: 92px;
+    border: 1px solid var(--border-strong); border-radius: 9px;
+    background: color-mix(in srgb, var(--panel) 94%, transparent);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 8px 22px rgba(30, 41, 59, .12);
+    overflow: hidden;
+  }
+  .minimap::before {
+    content: ""; position: absolute; inset: 0;
+    background-image: radial-gradient(circle, var(--dot) 1px, transparent 1px);
+    background-size: 8px 8px; opacity: .6;
+  }
+  .mini-table { position: absolute; height: 15px; border-radius: 2px; background: var(--mini-color); opacity: .32; }
+  .mini-table b { display: block; height: 4px; border-radius: 2px 2px 0 0; background: var(--mini-color); opacity: .55; }
+  .mini-view {
+    position: absolute; left: 13px; top: 9px; width: 92px; height: 70px;
+    border: 1.2px solid var(--accent); border-radius: 3px;
+    background: color-mix(in srgb, var(--accent) 5%, transparent);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--panel) 50%, transparent) inset;
+  }
+
+  /* ── Statusbar ────────────────────────────────────────────── */
+  .statusbar {
+    height: 27px; flex: none;
+    display: flex; align-items: center; gap: 10px;
+    padding: 0 12px;
+    border-top: 1px solid var(--border);
+    background: var(--panel);
+    color: var(--faint); font-size: 9px;
+    white-space: nowrap; overflow: hidden;
+  }
+  .status-left, .status-right { display: flex; align-items: center; gap: 8px; }
+  .status-right { margin-left: auto; }
+  .status-item { display: inline-flex; align-items: center; gap: 4px; }
+  .status-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--ok); }
+  .status-dot.warn { background: var(--warning); }
+  .status-sep { width: 1px; height: 10px; background: var(--border); }
+  .status-right .kbd-hint { color: var(--faint); }
+  .status-right .kbd-hint kbd {
+    font-family: inherit; font-size: 8px; color: var(--muted);
+    border: 1px solid var(--border); border-radius: 3px;
+    padding: 0 3px; background: var(--panel-2);
+  }
+
+  /* ── Responsive ───────────────────────────────────────────── */
+  @media (min-width: 1500px) {
+    .diagram { transform: translateY(-50%) scale(1); }
+  }
+  @media (max-width: 1420px) {
+    .main { grid-template-columns: 380px minmax(0, 1fr); }
+    .main.mode-editor, .main.mode-canvas { grid-template-columns: minmax(0, 1fr); }
+    .sidebar { display: none; }
+    .titlebar-center { display: none; }
+  }
+  @media (max-width: 1180px) {
+    .inspector { display: none; }
+    .diagram { transform: translateY(-50%) scale(.8); transform-origin: left center; }
+    .minimap { width: 132px; height: 82px; }
+  }
+  @media (max-width: 980px) {
+    .main { grid-template-columns: 330px minmax(0, 1fr); }
+    .main.mode-editor, .main.mode-canvas { grid-template-columns: minmax(0, 1fr); }
+    .diagram { transform: translateY(-50%) scale(.7); transform-origin: left center; }
+    .minimap { display: none; }
+    .canvas-toolbar .tool-hint { display: none; }
+    .title-actions .btn:not(.primary) { display: none; }
+  }
+  @media (max-width: 760px) {
+    .main, .main.mode-editor, .main.mode-canvas { grid-template-columns: minmax(0, 1fr); }
+    .editor-pane { display: none; }
+    .diagram { left: 50%; transform: translate(-50%, -50%) scale(.8); transform-origin: center center; }
+  }
+  @media (max-width: 700px) {
+    .stage { padding: 0; }
+    .window { height: 100vh; min-height: 0; border-radius: 0; border: 0; }
+    .traffic { display: none; }
+    .title-actions .segmented { display: none; }
+    .diagram { transform: translate(-50%, -50%) scale(.72); }
+    .minimap { display: none; }
+    .canvas-badge { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+  }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="window" role="application" aria-label="DBML Studio 界面设计稿">
+
+    <!-- ══ Titlebar ══════════════════════════════════════════ -->
+    <header class="titlebar">
+      <div class="traffic" aria-hidden="true"><i></i><i></i><i></i></div>
+
+      <div class="brand">
+        <div class="logo" aria-hidden="true">
+          <svg width="17" height="17" viewBox="0 0 20 20" fill="none">
+            <rect x="2.2" y="2.6" width="6.2" height="4.6" rx="1.2" stroke="currentColor" stroke-width="1.25"/>
+            <rect x="11.6" y="12.8" width="6.2" height="4.6" rx="1.2" stroke="currentColor" stroke-width="1.25"/>
+            <rect x="11.6" y="2.6" width="6.2" height="4.6" rx="1.2" stroke="currentColor" stroke-width="1.25"/>
+            <path d="M8.4 4.9h3.2M14.7 7.2v5.6M5.3 7.2v5.6a2 2 0 0 0 2 2h4.3" stroke="currentColor" stroke-width="1.25" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <span class="brand-name">DBML Studio</span>
+        <span class="pill-local">本地</span>
+      </div>
+
+      <div class="titlebar-center">
+        <div class="doc-chip">
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path d="M4 1.8h5.2L12.5 5v9.2H4V1.8Z" stroke="currentColor" stroke-width="1.15" stroke-linejoin="round"/>
+            <path d="M9 1.9V5.2h3.3M5.8 8h4.7M5.8 10.6h3.3" stroke="currentColor" stroke-width="1.15" stroke-linecap="round"/>
+          </svg>
+          <span class="doc-name">shop.dbml</span>
+          <span class="saved">
+            <svg width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M2.2 6.3 4.6 8.7 9.8 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            已保存
+          </span>
+        </div>
+      </div>
+
+      <div class="title-actions">
+        <div class="icon-group">
+          <button class="icon-btn" title="撤销（⌘Z）" aria-label="撤销">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M5.4 4.2 2.6 7l2.8 2.8M2.9 7h6.3a3.1 3.1 0 0 1 0 6.2H6.4" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <button class="icon-btn" title="重做（⇧⌘Z）" aria-label="重做">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="m10.6 4.2 2.8 2.8-2.8 2.8M13.1 7H6.8a3.1 3.1 0 1 0 0 6.2h2.8" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+        </div>
+
+        <div class="segmented view-switch" role="group" aria-label="视图模式">
+          <button data-view="editor" title="仅代码">代码</button>
+          <button data-view="split" class="active" title="分栏">分栏</button>
+          <button data-view="canvas" title="仅画布">画布</button>
+        </div>
+
+        <button class="btn" title="自动整理布局（L）">
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><rect x="2" y="2.4" width="4.2" height="3.4" rx="1" stroke="currentColor" stroke-width="1.1"/><rect x="9.8" y="2.4" width="4.2" height="3.4" rx="1" stroke="currentColor" stroke-width="1.1"/><rect x="5.9" y="10.2" width="4.2" height="3.4" rx="1" stroke="currentColor" stroke-width="1.1"/><path d="M6.2 5.8 8 10.2M9.8 5.8 8 10.2" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg>
+          自动布局
+        </button>
+
+        <button class="btn primary" title="导出 SQL / 图片（⌘E）">
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M8 2.2v7.1M5.4 6.9 8 9.5l2.6-2.6M3.1 11.3v1.9h9.8v-1.9" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          导出
+        </button>
+
+        <button class="icon-btn" id="themeToggle" title="切换明暗主题" aria-label="切换明暗主题">
+          <svg class="moon" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M13.2 9.7A5.7 5.7 0 0 1 6.3 2.8a5.8 5.8 0 1 0 6.9 6.9Z" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <svg class="sun" width="14" height="14" viewBox="0 0 16 16" fill="none" style="display:none"><circle cx="8" cy="8" r="2.8" stroke="currentColor" stroke-width="1.2"/><path d="M8 1.4v1.4M8 13.2v1.4M1.4 8h1.4M13.2 8h1.4M3.3 3.3l1 1M11.7 11.7l1 1M12.7 3.3l-1 1M4.3 11.7l-1 1" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <div class="main" id="main">
+
+      <!-- ══ Sidebar ═════════════════════════════════════════ -->
+      <aside class="sidebar" aria-label="对象导航">
+        <div class="search-wrap">
+          <div class="search">
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><circle cx="7.1" cy="7.1" r="4.3" stroke="currentColor" stroke-width="1.2"/><path d="m10.4 10.4 3.2 3.2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+            <input placeholder="搜索表 / 字段" aria-label="搜索表或字段">
+            <kbd>⌘K</kbd>
+          </div>
+        </div>
+
+        <div class="side-scroll">
+          <div class="side-section">
+            <div class="section-head">
+              <span class="chev"><svg width="9" height="9" viewBox="0 0 10 10" fill="none"><path d="m2.2 3.6 2.8 2.8 2.8-2.8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+              Tables <span class="count">4</span>
+              <button class="head-add" title="新建表"><svg width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M6 2.2v7.6M2.2 6h7.6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
+            </div>
+            <button class="side-item"><span class="ico"><svg width="12" height="12" viewBox="0 0 16 16" fill="none"><rect x="2.2" y="2.4" width="11.6" height="11.2" rx="1.8" stroke="currentColor" stroke-width="1.15"/><path d="M2.5 6.2h11M7 6.4v7" stroke="currentColor" stroke-width="1.15"/></svg></span><span class="label">users</span><span class="num">3</span></button>
+            <button class="side-item active"><span class="ico"><svg width="12" height="12" viewBox="0 0 16 16" fill="none"><rect x="2.2" y="2.4" width="11.6" height="11.2" rx="1.8" stroke="currentColor" stroke-width="1.15"/><path d="M2.5 6.2h11M7 6.4v7" stroke="currentColor" stroke-width="1.15"/></svg></span><span class="label">orders</span><span class="num">5</span></button>
+            <button class="side-item"><span class="ico"><svg width="12" height="12" viewBox="0 0 16 16" fill="none"><rect x="2.2" y="2.4" width="11.6" height="11.2" rx="1.8" stroke="currentColor" stroke-width="1.15"/><path d="M2.5 6.2h11M7 6.4v7" stroke="currentColor" stroke-width="1.15"/></svg></span><span class="label">order_items</span><span class="num">4</span></button>
+            <button class="side-item"><span class="ico"><svg width="12" height="12" viewBox="0 0 16 16" fill="none"><rect x="2.2" y="2.4" width="11.6" height="11.2" rx="1.8" stroke="currentColor" stroke-width="1.15"/><path d="M2.5 6.2h11M7 6.4v7" stroke="currentColor" stroke-width="1.15"/></svg></span><span class="label">products</span><span class="num">4</span></button>
+          </div>
+
+          <div class="side-section">
+            <div class="section-head">
+              <span class="chev"><svg width="9" height="9" viewBox="0 0 10 10" fill="none"><path d="m2.2 3.6 2.8 2.8 2.8-2.8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+              Enums <span class="count">1</span>
+              <button class="head-add" title="新建枚举"><svg width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M6 2.2v7.6M2.2 6h7.6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
+            </div>
+            <button class="side-item"><span class="enum-dot"></span><span class="label">order_status</span><span class="num">3</span></button>
+          </div>
+
+          <div class="side-section">
+            <div class="section-head">
+              <span class="chev"><svg width="9" height="9" viewBox="0 0 10 10" fill="none"><path d="m2.2 3.6 2.8 2.8 2.8-2.8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+              Groups <span class="count">2</span>
+              <button class="head-add" title="新建分组"><svg width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M6 2.2v7.6M2.2 6h7.6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
+            </div>
+            <button class="side-item"><span class="group-dot"></span><span class="label">sales</span><span class="num">2</span></button>
+            <button class="side-item"><span class="group-dot"></span><span class="label">catalog</span><span class="num">2</span></button>
+          </div>
+        </div>
+
+        <div class="sidebar-foot">
+          <button class="new-table"><svg width="11" height="11" viewBox="0 0 12 12" fill="none"><path d="M6 2.2v7.6M2.2 6h7.6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>新建表</button>
+          <div class="local-note"><i></i>本地工作区 · 无云端同步</div>
+        </div>
+      </aside>
+
+      <!-- ══ DBML Editor ═════════════════════════════════════ -->
+      <section class="editor-pane" aria-label="DBML 编辑器">
+        <div class="editor-head">
+          <span class="lang-badge">DBML</span>
+          <span class="editor-meta">UTF-8 · 27 行 · 1 个 schema</span>
+          <div class="editor-head-actions">
+            <button class="mini-action" title="在文件中查找">
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><circle cx="7.1" cy="7.1" r="4.3" stroke="currentColor" stroke-width="1.2"/><path d="m10.4 10.4 3.1 3.1" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+              查找
+            </button>
+            <button class="mini-action" title="格式化 DBML">
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M3 3.2h10M5.1 6.4h7.9M3 9.6h10M5.1 12.8h7.9" stroke="currentColor" stroke-width="1.15" stroke-linecap="round"/></svg>
+              格式化
+            </button>
+            <button class="icon-btn" title="更多编辑器操作" aria-label="更多编辑器操作"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><circle cx="3.2" cy="8" r="1.1"/><circle cx="8" cy="8" r="1.1"/><circle cx="12.8" cy="8" r="1.1"/></svg></button>
+          </div>
+        </div>
+
+        <div class="editor-scroll" aria-label="DBML 代码">
+          <div class="code-line"><span class="ln">1</span><span class="code-text"><span class="tok-kw">Project</span> shop <span class="tok-punc">{</span></span></div>
+          <div class="code-line"><span class="ln">2</span><span class="code-text">  database_type: <span class="tok-str">'PostgreSQL'</span></span></div>
+          <div class="code-line"><span class="ln">3</span><span class="code-text">  Note: <span class="tok-str">'电商示例'</span></span></div>
+          <div class="code-line"><span class="ln">4</span><span class="code-text"><span class="tok-punc">}</span></span></div>
+          <div class="code-line"><span class="ln">5</span><span class="code-text"></span></div>
+          <div class="code-line"><span class="ln">6</span><span class="code-text"><span class="tok-kw">Enum</span> <span class="tok-name">order_status</span> <span class="tok-punc">{</span></span></div>
+          <div class="code-line"><span class="ln">7</span><span class="code-text">  pending</span></div>
+          <div class="code-line"><span class="ln">8</span><span class="code-text">  paid</span></div>
+          <div class="code-line"><span class="ln">9</span><span class="code-text">  shipped</span></div>
+          <div class="code-line"><span class="ln">10</span><span class="code-text"><span class="tok-punc">}</span></span></div>
+          <div class="code-line"><span class="ln">11</span><span class="code-text"></span></div>
+          <div class="code-line"><span class="ln">12</span><span class="code-text"><span class="tok-kw">Table</span> <span class="tok-name">users</span> <span class="tok-punc">{</span></span></div>
+          <div class="code-line"><span class="ln">13</span><span class="code-text">  id <span class="tok-type">integer</span> <span class="tok-punc">[</span><span class="tok-set">pk</span><span class="tok-punc">,</span> <span class="tok-set">increment</span><span class="tok-punc">]</span></span></div>
+          <div class="code-line"><span class="ln">14</span><span class="code-text">  email <span class="tok-type">varchar(255)</span> <span class="tok-punc">[</span><span class="tok-set">unique</span><span class="tok-punc">,</span> <span class="tok-set">not null</span><span class="tok-punc">]</span></span></div>
+          <div class="code-line"><span class="ln">15</span><span class="code-text">  created_at <span class="tok-type">timestamp</span> <span class="tok-punc">[</span><span class="tok-set">default</span><span class="tok-punc">:</span> <span class="tok-val">`now()`</span><span class="tok-punc">]</span></span></div>
+          <div class="code-line"><span class="ln">16</span><span class="code-text"><span class="tok-punc">}</span></span></div>
+          <div class="code-line"><span class="ln">17</span><span class="code-text"></span></div>
+          <div class="code-line"><span class="ln">18</span><span class="code-text"><span class="tok-kw">Table</span> <span class="tok-name">orders</span> <span class="tok-punc">[</span><span class="tok-set">headercolor</span><span class="tok-punc">:</span> <span class="tok-color">#6366F1</span><span class="tok-punc">]</span> <span class="tok-punc">{</span></span></div>
+          <div class="code-line"><span class="ln">19</span><span class="code-text">  id <span class="tok-type">int</span> <span class="tok-punc">[</span><span class="tok-set">pk</span><span class="tok-punc">]</span></span></div>
+          <div class="code-line active"><span class="ln">20</span><span class="code-text">  <span class="warn">user_id</span> <span class="tok-type">int</span></span></div>
+          <div class="code-line"><span class="ln">21</span><span class="code-text">  status <span class="tok-type-enum">order_status</span></span></div>
+          <div class="code-line"><span class="ln">22</span><span class="code-text">  total <span class="tok-type">decimal(10,2)</span></span></div>
+          <div class="code-line"><span class="ln">23</span><span class="code-text">  created_at <span class="tok-type">timestamp</span> <span class="tok-punc">[</span><span class="tok-set">default</span><span class="tok-punc">:</span> <span class="tok-val">`now()`</span><span class="tok-punc">]</span></span></div>
+          <div class="code-line"><span class="ln">24</span><span class="code-text">  <span class="tok-kw">Note</span><span class="tok-punc">:</span> <span class="tok-str">'订单主表'</span></span></div>
+          <div class="code-line"><span class="ln">25</span><span class="code-text"><span class="tok-punc">}</span></span></div>
+          <div class="code-line"><span class="ln">26</span><span class="code-text"></span></div>
+          <div class="code-line"><span class="ln">27</span><span class="code-text"><span class="tok-kw">Ref</span><span class="tok-punc">:</span> orders.user_id <span class="tok-punc">&gt;</span> users.id <span class="tok-punc">[</span><span class="tok-set">delete</span><span class="tok-punc">:</span> <span class="tok-val">cascade</span><span class="tok-punc">]</span></span></div>
+        </div>
+
+        <div class="problems-bar">
+          <span class="status-dot"></span>
+          <strong>0 错误</strong>
+          <span class="sep">·</span>
+          <span>1 警告</span>
+          <span class="problem-msg">orders.user_id 可为空，但关系要求 NOT NULL</span>
+          <button class="quickfix">设为 NOT NULL</button>
+          <span class="chev"><svg width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="m2.8 7.2 3.2-3.2 3.2 3.2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        </div>
+      </section>
+
+      <!-- ══ Canvas ══════════════════════════════════════════ -->
+      <section class="canvas-pane" aria-label="ER 关系图">
+        <div class="canvas-viewport">
+          <div class="canvas-badge">
+            <svg width="11" height="11" viewBox="0 0 16 16" fill="none"><rect x="2" y="2.4" width="5" height="4" rx="1" stroke="currentColor" stroke-width="1.1"/><rect x="9" y="9.6" width="5" height="4" rx="1" stroke="currentColor" stroke-width="1.1"/><path d="M7 4.4h4.5v5.2" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg>
+            <strong>ER 画布</strong><span class="badge-sep"></span><span>4 张表 · 3 条关系</span>
+          </div>
+
+          <div class="diagram">
+            <svg class="edges" viewBox="0 0 840 560" aria-hidden="true">
+              <defs>
+                <marker id="crow" viewBox="0 0 14 14" refX="11" refY="7" markerWidth="12" markerHeight="12" orient="auto">
+                  <path d="M11 7 2.2 1.4M11 7 2.2 12.6M11 7H2.2" fill="none" stroke="var(--edge)" stroke-width="1.2" stroke-linecap="round"/>
+                </marker>
+                <marker id="crowActive" viewBox="0 0 14 14" refX="11" refY="7" markerWidth="12" markerHeight="12" orient="auto">
+                  <path d="M11 7 2.2 1.4M11 7 2.2 12.6M11 7H2.2" fill="none" stroke="var(--accent)" stroke-width="1.25" stroke-linecap="round"/>
+                </marker>
+                <marker id="one" viewBox="0 0 12 12" refX="9" refY="6" markerWidth="9" markerHeight="9" orient="auto">
+                  <path d="M9 1.6v8.8" fill="none" stroke="var(--edge)" stroke-width="1.3" stroke-linecap="round"/>
+                </marker>
+                <marker id="oneActive" viewBox="0 0 12 12" refX="9" refY="6" markerWidth="9" markerHeight="9" orient="auto">
+                  <path d="M9 1.6v8.8" fill="none" stroke="var(--accent)" stroke-width="1.4" stroke-linecap="round"/>
+                </marker>
+              </defs>
+
+              <path class="edge active" d="M234 109 C262 109 272 146 300 146" marker-start="url(#oneActive)" marker-end="url(#crowActive)"/>
+              <text class="edge-label active" x="242" y="102">1</text>
+              <text class="edge-label active" x="287" y="158">N</text>
+
+              <path class="edge" d="M409 265 C409 307 131 314 131 356" marker-start="url(#one)" marker-end="url(#crow)"/>
+              <text class="edge-label" x="402" y="279">1</text>
+              <text class="edge-label" x="122" y="345">N</text>
+
+              <path class="edge" d="M300 409 C268 409 271 463 242 463" marker-start="url(#one)" marker-end="url(#crow)"/>
+              <text class="edge-label" x="273" y="402">1</text>
+              <text class="edge-label" x="233" y="476">N</text>
+
+              <circle class="anchor-dot active" cx="234" cy="109" r="2.6"/>
+              <circle class="anchor-dot active" cx="300" cy="146" r="2.6"/>
+              <circle class="warn-anchor" cx="300" cy="146" r="4.6" opacity=".18"/>
+              <circle class="anchor-dot" cx="409" cy="265" r="2.6"/>
+              <circle class="anchor-dot" cx="131" cy="356" r="2.6"/>
+              <circle class="anchor-dot" cx="300" cy="409" r="2.6"/>
+              <circle class="anchor-dot" cx="242" cy="463" r="2.6"/>
+            </svg>
+
+            <!-- users -->
+            <article class="table-card users" aria-label="users 表">
+              <div class="table-head">
+                <span class="table-schema">public</span>
+                <span class="table-name">users</span>
+                <button class="table-menu" aria-label="users 表菜单"><svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><circle cx="3.2" cy="8" r="1.15"/><circle cx="8" cy="8" r="1.15"/><circle cx="12.8" cy="8" r="1.15"/></svg></button>
+              </div>
+              <div class="table-body">
+                <div class="col-row"><span class="col-flag pk"><svg width="11" height="11" viewBox="0 0 16 16" fill="none"><circle cx="5.7" cy="10.3" r="2.7" stroke="currentColor" stroke-width="1.25"/><path d="m7.7 8.3 5.4-5.4M10.8 5.2l1.6 1.6M12.5 3.5l1.3 1.3" stroke="currentColor" stroke-width="1.25" stroke-linecap="round"/></svg></span><span class="col-name">id</span><span class="col-type">integer</span><span class="mini-badge uq" style="display:none"></span></div>
+                <div class="col-row"><span class="col-flag"></span><span class="col-name">email</span><span class="col-type">varchar(255)</span><span class="mini-badge uq">UQ</span></div>
+                <div class="col-row"><span class="col-flag"></span><span class="col-name">created_at</span><span class="col-type">timestamp</span></div>
+              </div>
+              <div class="table-foot"><svg width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M2.2 3h7.6M2.2 6h7.6M2.2 9h4.6" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg>用户主表<span class="foot-sep"></span>1 个索引</div>
+            </article>
+
+            <!-- orders (selected) -->
+            <article class="table-card orders selected" aria-label="orders 表，已选中">
+              <div class="table-head">
+                <span class="table-schema">public</span>
+                <span class="table-name">orders</span>
+                <span class="selected-tag">SELECTED</span>
+                <button class="table-menu" aria-label="orders 表菜单"><svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><circle cx="3.2" cy="8" r="1.15"/><circle cx="8" cy="8" r="1.15"/><circle cx="12.8" cy="8" r="1.15"/></svg></button>
+              </div>
+              <div class="table-body">
+                <div class="col-row"><span class="col-flag pk"><svg width="11" height="11" viewBox="0 0 16 16" fill="none"><circle cx="5.7" cy="10.3" r="2.7" stroke="currentColor" stroke-width="1.25"/><path d="m7.7 8.3 5.4-5.4M10.8 5.2l1.6 1.6M12.5 3.5l1.3 1.3" stroke="currentColor" stroke-width="1.25" stroke-linecap="round"/></svg></span><span class="col-name">id</span><span class="col-type">int</span></div>
+                <div class="col-row highlight"><span class="col-flag fk"><svg width="11" height="11" viewBox="0 0 16 16" fill="none"><path d="M6.5 9.5a2.6 2.6 0 0 1 0-3.7l1.4-1.4a2.6 2.6 0 1 1 3.7 3.7l-.8.8M9.5 6.5a2.6 2.6 0 0 1 0 3.7l-1.4 1.4a2.6 2.6 0 1 1-3.7-3.7l.8-.8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg></span><span class="col-name">user_id</span><span class="col-type">int</span><span class="mini-badge warn" title="可为空，但关系要求 NOT NULL">!</span></div>
+                <div class="col-row"><span class="col-flag"></span><span class="col-name">status</span><span class="col-type enum">order_status</span></div>
+                <div class="col-row"><span class="col-flag"></span><span class="col-name">total</span><span class="col-type">decimal(10,2)</span></div>
+                <div class="col-row"><span class="col-flag"></span><span class="col-name">created_at</span><span class="col-type">timestamp</span></div>
+              </div>
+              <div class="table-foot"><svg width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M2.2 3h7.6M2.2 6h7.6M2.2 9h4.6" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg>订单主表<span class="foot-sep"></span>3 个索引</div>
+            </article>
+
+            <!-- order_items -->
+            <article class="table-card order-items" aria-label="order_items 表">
+              <div class="table-head">
+                <span class="table-schema">public</span>
+                <span class="table-name">order_items</span>
+                <button class="table-menu" aria-label="order_items 表菜单"><svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><circle cx="3.2" cy="8" r="1.15"/><circle cx="8" cy="8" r="1.15"/><circle cx="12.8" cy="8" r="1.15"/></svg></button>
+              </div>
+              <div class="table-body">
+                <div class="col-row"><span class="col-flag pk"><svg width="11" height="11" viewBox="0 0 16 16" fill="none"><circle cx="5.7" cy="10.3" r="2.7" stroke="currentColor" stroke-width="1.25"/><path d="m7.7 8.3 5.4-5.4M10.8 5.2l1.6 1.6M12.5 3.5l1.3 1.3" stroke="currentColor" stroke-width="1.25" stroke-linecap="round"/></svg></span><span class="col-name">id</span><span class="col-type">int</span></div>
+                <div class="col-row"><span class="col-flag fk"><svg width="11" height="11" viewBox="0 0 16 16" fill="none"><path d="M6.5 9.5a2.6 2.6 0 0 1 0-3.7l1.4-1.4a2.6 2.6 0 1 1 3.7 3.7l-.8.8M9.5 6.5a2.6 2.6 0 0 1 0 3.7l-1.4 1.4a2.6 2.6 0 1 1-3.7-3.7l.8-.8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg></span><span class="col-name">order_id</span><span class="col-type">int</span></div>
+                <div class="col-row"><span class="col-flag fk"><svg width="11" height="11" viewBox="0 0 16 16" fill="none"><path d="M6.5 9.5a2.6 2.6 0 0 1 0-3.7l1.4-1.4a2.6 2.6 0 1 1 3.7 3.7l-.8.8M9.5 6.5a2.6 2.6 0 0 1 0 3.7l-1.4 1.4a2.6 2.6 0 1 1-3.7-3.7l.8-.8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg></span><span class="col-name">product_id</span><span class="col-type">int</span></div>
+                <div class="col-row"><span class="col-flag"></span><span class="col-name">quantity</span><span class="col-type">int</span><span class="mini-badge nn">NN</span></div>
+              </div>
+              <div class="table-foot"><svg width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M2.2 3h7.6M2.2 6h7.6M2.2 9h4.6" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg>2 个索引</div>
+            </article>
+
+            <!-- products -->
+            <article class="table-card products" aria-label="products 表">
+              <div class="table-head">
+                <span class="table-schema">public</span>
+                <span class="table-name">products</span>
+                <button class="table-menu" aria-label="products 表菜单"><svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><circle cx="3.2" cy="8" r="1.15"/><circle cx="8" cy="8" r="1.15"/><circle cx="12.8" cy="8" r="1.15"/></svg></button>
+              </div>
+              <div class="table-body">
+                <div class="col-row"><span class="col-flag pk"><svg width="11" height="11" viewBox="0 0 16 16" fill="none"><circle cx="5.7" cy="10.3" r="2.7" stroke="currentColor" stroke-width="1.25"/><path d="m7.7 8.3 5.4-5.4M10.8 5.2l1.6 1.6M12.5 3.5l1.3 1.3" stroke="currentColor" stroke-width="1.25" stroke-linecap="round"/></svg></span><span class="col-name">id</span><span class="col-type">int</span></div>
+                <div class="col-row"><span class="col-flag"></span><span class="col-name">name</span><span class="col-type">varchar(255)</span><span class="mini-badge nn">NN</span></div>
+                <div class="col-row"><span class="col-flag"></span><span class="col-name">price</span><span class="col-type">decimal(10,2)</span></div>
+                <div class="col-row"><span class="col-flag"></span><span class="col-name">stock</span><span class="col-type">int</span></div>
+              </div>
+              <div class="table-foot"><svg width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M2.2 3h7.6M2.2 6h7.6M2.2 9h4.6" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg>库存与价格</div>
+            </article>
+          </div>
+
+          <!-- Inspector -->
+          <aside class="inspector" aria-label="属性检查器" style="--table-color:#6366f1">
+            <div class="inspector-head">
+              <div class="inspector-title">
+                <div class="eyebrow"><span class="accent-dot"></span>Table · public</div>
+                <h2>orders</h2>
+              </div>
+              <div class="inspector-actions">
+                <button class="icon-btn" title="更多" aria-label="更多表操作"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><circle cx="3.2" cy="8" r="1.1"/><circle cx="8" cy="8" r="1.1"/><circle cx="12.8" cy="8" r="1.1"/></svg></button>
+                <button class="icon-btn" title="关闭属性面板" aria-label="关闭属性面板"><svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="m4 4 8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
+              </div>
+            </div>
+
+            <div class="inspector-body">
+              <div class="field">
+                <label>名称</label>
+                <input class="input" value="orders" aria-label="表名称">
+              </div>
+              <div class="field-row-2">
+                <div class="field">
+                  <label>Schema</label>
+                  <div class="select-look">public
+                    <svg width="9" height="9" viewBox="0 0 10 10" fill="none"><path d="m2.2 3.6 2.8 2.8 2.8-2.8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  </div>
+                </div>
+                <div class="field">
+                  <label>表头颜色</label>
+                  <div class="color-field">
+                    <span class="swatch"></span>
+                    <span class="color-code">#6366F1</span>
+                    <button class="color-change">更换</button>
+                  </div>
+                </div>
+              </div>
+              <div class="field">
+                <label>备注</label>
+                <textarea class="textarea" aria-label="表备注">订单主表</textarea>
+              </div>
+
+              <div class="divider"></div>
+
+              <div class="subhead">
+                Columns <span class="count">5</span>
+                <button class="sub-action" title="新增字段" aria-label="新增字段"><svg width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M6 2.2v7.6M2.2 6h7.6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
+              </div>
+              <div class="mini-columns">
+                <div class="mini-col"><span class="m-flag pk"><svg width="10" height="10" viewBox="0 0 16 16" fill="none"><circle cx="5.7" cy="10.3" r="2.7" stroke="currentColor" stroke-width="1.25"/><path d="m7.7 8.3 5.4-5.4M10.8 5.2l1.6 1.6M12.5 3.5l1.3 1.3" stroke="currentColor" stroke-width="1.25" stroke-linecap="round"/></svg></span><span class="m-name">id</span><span class="m-type">int</span></div>
+                <div class="mini-col active"><span class="m-flag fk"><svg width="10" height="10" viewBox="0 0 16 16" fill="none"><path d="M6.5 9.5a2.6 2.6 0 0 1 0-3.7l1.4-1.4a2.6 2.6 0 1 1 3.7 3.7l-.8.8M9.5 6.5a2.6 2.6 0 0 1 0 3.7l-1.4 1.4a2.6 2.6 0 1 1-3.7-3.7l.8-.8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg></span><span class="m-name">user_id</span><span class="m-type">int</span><span class="m-warn" title="nullable warning"><svg width="8" height="8" viewBox="0 0 10 10" fill="none"><path d="M5 1.5 9 8.2H1L5 1.5Z" stroke="currentColor" stroke-width="1.05" stroke-linejoin="round"/><path d="M5 4v2M5 7.1v.2" stroke="currentColor" stroke-width="1.05" stroke-linecap="round"/></svg></span></div>
+                <div class="mini-col"><span class="m-flag"></span><span class="m-name">status</span><span class="m-type" style="color:var(--purple)">order_status</span></div>
+                <div class="mini-col"><span class="m-flag"></span><span class="m-name">total</span><span class="m-type">decimal(10,2)</span></div>
+                <div class="mini-col"><span class="m-flag"></span><span class="m-name">created_at</span><span class="m-type">timestamp</span></div>
+              </div>
+
+              <div class="divider"></div>
+
+              <div class="subhead">Relationships <span class="count">1</span></div>
+              <div class="rel-row">
+                <span class="rel-dot"></span>
+                <div>
+                  <div class="rel-title"><code>users.id</code> → <code>orders.user_id</code></div>
+                  <div class="rel-sub">多对一 · ON DELETE CASCADE</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="inspector-foot">
+              <button class="locate-btn">
+                <svg width="11" height="11" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="3" stroke="currentColor" stroke-width="1.2"/><path d="M8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                在 DBML 中定位
+              </button>
+              <button class="danger-btn" title="删除表" aria-label="删除表"><svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M3 4.5h10M6.2 4.5V3h3.6v1.5M4.3 4.5l.5 8.2h6.4l.5-8.2M6.7 7v3.3M9.3 7v3.3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+            </div>
+          </aside>
+
+          <!-- Canvas controls -->
+          <div class="canvas-toolbar" aria-label="画布工具">
+            <button title="缩小" aria-label="缩小"><svg width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M2.2 6h7.6" stroke="currentColor" stroke-width="1.25" stroke-linecap="round"/></svg></button>
+            <button class="zoom-value" title="重置为 100%" aria-label="重置缩放">100%</button>
+            <button title="放大" aria-label="放大"><svg width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M6 2.2v7.6M2.2 6h7.6" stroke="currentColor" stroke-width="1.25" stroke-linecap="round"/></svg></button>
+            <span class="tool-sep"></span>
+            <button title="适应视图（F）" aria-label="适应视图"><svg width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M2.2 4.4V2.2h2.2M7.6 2.2h2.2v2.2M9.8 7.6v2.2H7.6M4.4 9.8H2.2V7.6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+            <span class="tool-sep"></span>
+            <span class="tool-hint">
+              <svg width="10" height="10" viewBox="0 0 16 16" fill="none"><path d="M6.5 9.5a2.6 2.6 0 0 1 0-3.7l1.4-1.4a2.6 2.6 0 1 1 3.7 3.7l-.8.8M9.5 6.5a2.6 2.6 0 0 1 0 3.7l-1.4 1.4a2.6 2.6 0 1 1-3.7-3.7l.8-.8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+              拖拽列端点建立关系
+            </span>
+          </div>
+
+          <div class="minimap" aria-hidden="true">
+            <div class="mini-view"></div>
+            <div class="mini-table" style="left:10px; top:14px; width:34px; --mini-color:#0ea5e9"><b></b></div>
+            <div class="mini-table" style="left:64px; top:17px; width:36px; --mini-color:#6366f1"><b></b></div>
+            <div class="mini-table" style="left:11px; top:57px; width:35px; --mini-color:#f59e0b"><b></b></div>
+            <div class="mini-table" style="left:64px; top:58px; width:35px; --mini-color:#10b981"><b></b></div>
+          </div>
+
+        </div>
+      </section>
+    </div>
+
+    <!-- ══ Statusbar ═════════════════════════════════════════ -->
+    <footer class="statusbar">
+      <div class="status-left">
+        <span class="status-item"><span class="status-dot"></span>语法正确</span>
+        <span class="status-sep"></span>
+        <span class="status-item">4 张表</span>
+        <span class="status-item">3 条关系</span>
+        <span class="status-sep"></span>
+        <span class="status-item"><span class="status-dot warn"></span>1 警告</span>
+        <span class="status-sep"></span>
+        <span class="status-item">行 20，列 3</span>
+      </div>
+      <div class="status-right">
+        <span class="status-item">UTF-8</span>
+        <span class="status-sep"></span>
+        <span class="status-item">DBML</span>
+        <span class="status-sep"></span>
+        <span class="status-item">100%</span>
+        <span class="status-sep"></span>
+        <span class="status-item kbd-hint">自动布局 <kbd>L</kbd></span>
+        <span class="status-sep"></span>
+        <span class="status-item">已保存 · 14:32</span>
+      </div>
+    </footer>
+  </div>
+</div>
+
+<script>
+  const root = document.documentElement;
+  const themeToggle = document.getElementById('themeToggle');
+  const moon = themeToggle.querySelector('.moon');
+  const sun = themeToggle.querySelector('.sun');
+
+  function syncThemeIcon() {
+    const dark = root.dataset.theme === 'dark';
+    moon.style.display = dark ? 'none' : 'block';
+    sun.style.display = dark ? 'block' : 'none';
+  }
+  themeToggle.addEventListener('click', () => {
+    root.dataset.theme = root.dataset.theme === 'dark' ? 'light' : 'dark';
+    syncThemeIcon();
+  });
+
+  const main = document.getElementById('main');
+  document.querySelectorAll('.view-switch button').forEach((button) => {
+    button.addEventListener('click', () => {
+      document.querySelectorAll('.view-switch button').forEach((b) => b.classList.toggle('active', b === button));
+      main.classList.toggle('mode-editor', button.dataset.view === 'editor');
+      main.classList.toggle('mode-canvas', button.dataset.view === 'canvas');
+    });
+  });
+  syncThemeIcon();
+</script>
+</body>
+</html>
