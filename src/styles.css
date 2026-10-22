@@ -3081,12 +3081,12 @@ select.input {
   margin-bottom: 34px;
 }
 
-.welcome-brand > svg {
+.welcome-brand > .logo {
   border-radius: 12px;
   box-shadow: 0 10px 24px rgba(79, 70, 229, 0.22);
 }
 
-.welcome-brand > div {
+.welcome-brand-copy {
   display: flex;
   flex-direction: column;
   gap: 3px;

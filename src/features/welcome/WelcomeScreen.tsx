@@ -31,7 +31,7 @@ export function WelcomeScreen() {
         <section className="welcome-hero">
           <div className="welcome-brand">
             <BrandMark size={44} />
-            <div>
+            <div className="welcome-brand-copy">
               <span className="welcome-eyebrow">DBML Studio</span>
               <span className="welcome-local">
                 <CloudOff size={10} />
