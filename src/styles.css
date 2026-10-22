@@ -316,65 +316,6 @@ kbd {
   white-space: nowrap;
 }
 
-.doc-chip {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  height: 30px;
-  padding: 0 11px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--panel-2);
-  color: var(--text-2);
-  font-size: 11.5px;
-  font-weight: 520;
-  max-width: 100%;
-  min-width: 0;
-}
-
-.doc-chip > svg {
-  color: var(--muted);
-}
-
-.doc-chip .doc-name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 260px;
-}
-
-.doc-chip.dirty {
-  border-color: var(--accent-border);
-}
-
-.doc-state.saved {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  color: var(--muted);
-  font-size: 10px;
-  padding-left: 2px;
-  white-space: nowrap;
-}
-
-.doc-state.saved svg {
-  color: var(--ok);
-}
-
-.doc-state.failed {
-  font-size: 9px;
-  color: var(--danger);
-  white-space: nowrap;
-}
-
-.dirty-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--warning);
-  flex: none;
-}
-
 .title-actions {
   display: flex;
   align-items: center;

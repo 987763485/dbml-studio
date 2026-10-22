@@ -2,7 +2,6 @@ import {
   Code2,
   Columns2,
   Download,
-  FileText,
   Keyboard,
   LayoutGrid,
   Moon,
@@ -22,9 +21,6 @@ import { BrandMark } from './BrandMark';
 
 export function TitleBar() {
   const screen = useAppStore((state) => state.screen);
-  const docName = useAppStore((state) => state.docName);
-  const dirty = useAppStore((state) => state.dirty);
-  const saveState = useAppStore((state) => state.saveState);
   const viewMode = useAppStore((state) => state.viewMode);
   const resolvedTheme = useAppStore((state) => state.resolvedTheme);
   const sidebarCollapsed = useAppStore((state) => state.sidebarCollapsed);
@@ -53,30 +49,7 @@ export function TitleBar() {
 
       {workspace ? (
         <>
-          <div className="titlebar-center" data-tauri-drag-region>
-            <div className={`doc-chip ${dirty ? 'dirty' : ''}`}>
-              <FileText size={13} />
-              <span className="doc-name">{docName}</span>
-              {dirty ? (
-                <span className="doc-state dirty-dot" title="有未保存的修改" />
-              ) : saveState === 'error' ? (
-                <span className="doc-state failed">保存失败</span>
-              ) : (
-                <span className="doc-state saved">
-                  <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
-                    <path
-                      d="M2.2 6.3 4.6 8.7 9.8 3.5"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                  已保存
-                </span>
-              )}
-            </div>
-          </div>
+          <div className="titlebar-center" data-tauri-drag-region />
 
           <div className="title-actions">
             <button
