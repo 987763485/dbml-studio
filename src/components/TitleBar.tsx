@@ -46,7 +46,7 @@ export function TitleBar() {
         <i />
       </div>
       <div className="brand" data-tauri-drag-region>
-        <BrandMark size={26} />
+        <BrandMark size={28} />
         <span className="brand-name">DBML Studio</span>
         <span className="pill-local">本地</span>
       </div>

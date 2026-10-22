@@ -71,13 +71,54 @@ export interface ConfirmState {
   onConfirm: () => void | Promise<void>;
 }
 
+export interface TabMeta {
+  docId: string;
+  docPath: string | null;
+  docName: string;
+  dirty: boolean;
+  saveState: SaveState;
+}
+
+export interface DocumentSnapshot {
+  docId: string;
+  docPath: string | null;
+  docName: string;
+  content: string;
+  savedContent: string;
+  eol: Eol;
+  dirty: boolean;
+  view: ViewModel;
+  valid: boolean;
+  problems: Problem[];
+  markers: Problem[];
+  lastParseMs: number;
+  lastSavedAt: number | null;
+  saveState: SaveState;
+  selection: Selection;
+  selectedColumn: string | null;
+  cursor: CursorPosition;
+  cursorTableKey: string | null;
+  pendingTableSelection: string | null;
+  pendingColumnSelection: string | null;
+  pendingRefSelection: {
+    fromTableKey: string;
+    fromColumn: string;
+    toTableKey: string;
+    toColumn: string;
+  } | null;
+  layout: Record<string, TableLayout>;
+  layoutDirection: LayoutDirection;
+  viewport: Viewport | undefined;
+  hasSidecar: boolean;
+  layoutTouched: boolean;
+  zoom: number;
+}
+
 export type PendingAction =
-  | { type: 'new'; templateId: string }
-  | { type: 'open' }
-  | { type: 'openPath'; path: string }
   | { type: 'welcome' }
   | { type: 'close' }
-  | { type: 'quit' };
+  | { type: 'quit' }
+  | { type: 'closeTab'; docId: string };
 
 interface Prefs {
   theme: ThemeMode;
@@ -94,6 +135,8 @@ interface Prefs {
 export interface AppState {
   ready: boolean;
   screen: Screen;
+  tabs: TabMeta[];
+  inactiveDocs: Record<string, DocumentSnapshot>;
   docPath: string | null;
   docName: string;
   docId: string;
@@ -170,6 +213,9 @@ export interface AppState {
   requestOpen: () => void;
   openPath: (path: string) => Promise<void>;
   requestOpenPath: (path: string) => void;
+  activateTab: (docId: string) => void;
+  requestCloseTab: (docId: string) => void;
+  requestCloseActiveTab: () => void;
   resetWorkspace: () => void;
   requestWelcome: () => void;
   requestCloseWindow: () => Promise<void>;
@@ -423,7 +469,12 @@ function scheduleRecovery(get: () => AppState): void {
   }, 1000);
 }
 
-function newLayoutFile(state: AppState): LayoutFile {
+function newLayoutFile(state: {
+  docName: string;
+  layout: Record<string, TableLayout>;
+  viewport: Viewport | undefined;
+  layoutDirection: LayoutDirection;
+}): LayoutFile {
   return {
     version: 1,
     document: state.docName,
@@ -434,11 +485,224 @@ function newLayoutFile(state: AppState): LayoutFile {
   };
 }
 
+function snapshotFromState(state: AppState): DocumentSnapshot {
+  return {
+    docId: state.docId,
+    docPath: state.docPath,
+    docName: state.docName,
+    content: state.content,
+    savedContent: state.savedContent,
+    eol: state.eol,
+    dirty: state.dirty,
+    view: state.view,
+    valid: state.valid,
+    problems: state.problems,
+    markers: state.markers,
+    lastParseMs: state.lastParseMs,
+    lastSavedAt: state.lastSavedAt,
+    saveState: state.saveState,
+    selection: state.selection,
+    selectedColumn: state.selectedColumn,
+    cursor: state.cursor,
+    cursorTableKey: state.cursorTableKey,
+    pendingTableSelection: state.pendingTableSelection,
+    pendingColumnSelection: state.pendingColumnSelection,
+    pendingRefSelection: state.pendingRefSelection,
+    layout: state.layout,
+    layoutDirection: state.layoutDirection,
+    viewport: state.viewport,
+    hasSidecar: state.hasSidecar,
+    layoutTouched: state.layoutTouched,
+    zoom: state.zoom,
+  };
+}
+
+function tabFromSnapshot(snapshot: DocumentSnapshot): TabMeta {
+  return {
+    docId: snapshot.docId,
+    docPath: snapshot.docPath,
+    docName: snapshot.docName,
+    dirty: snapshot.dirty,
+    saveState: snapshot.saveState,
+  };
+}
+
+function isPristineDocument(state: AppState): boolean {
+  return (
+    state.screen === 'workspace' &&
+    !state.docPath &&
+    state.content.trim() === '' &&
+    state.savedContent.trim() === '' &&
+    !state.dirty &&
+    Object.keys(state.layout).length === 0
+  );
+}
+
+function nextUntitledName(tabs: TabMeta[], excludeDocId?: string): string {
+  const names = new Set(
+    tabs.filter((tab) => tab.docId !== excludeDocId).map((tab) => tab.docName),
+  );
+  if (!names.has('未命名.dbml')) return '未命名.dbml';
+  let index = 2;
+  while (names.has(`未命名 ${index}.dbml`)) index += 1;
+  return `未命名 ${index}.dbml`;
+}
+
+function collectDirtyDocIds(state: AppState): string[] {
+  const ids = state.tabs.map((tab) => tab.docId);
+  if (state.screen === 'workspace' && !ids.includes(state.docId)) {
+    ids.unshift(state.docId);
+  }
+  return ids.filter((docId) =>
+    docId === state.docId ? state.dirty : Boolean(state.inactiveDocs[docId]?.dirty),
+  );
+}
+
 export const useAppStore = create<AppState>()((set, get) => {
   const prefs = loadPrefs();
+
+  const flushDocument = (snapshot: DocumentSnapshot): void => {
+    if (snapshot.dirty) {
+      void platform
+        .saveRecovery(
+          snapshot.docId,
+          snapshot.docPath,
+          snapshot.docName,
+          snapshot.content,
+        )
+        .catch(() => undefined);
+    }
+    if (snapshot.layoutTouched && snapshot.docPath) {
+      void platform
+        .saveLayout(snapshot.docPath, newLayoutFile(snapshot))
+        .catch(() => undefined);
+    }
+  };
+
+  const activateDocument = (
+    docId: string,
+    options: { discardActive?: boolean } = {},
+  ): void => {
+    const state = get();
+    if (state.docId === docId) return;
+    const target = state.inactiveDocs[docId];
+    if (!target || !state.tabs.some((tab) => tab.docId === docId)) return;
+
+    if (parseTimer) {
+      clearTimeout(parseTimer);
+      parseTimer = undefined;
+      get().parseNow();
+    }
+
+    const current = get();
+    const previous = snapshotFromState(current);
+    const inactiveDocs = { ...current.inactiveDocs };
+    if (options.discardActive) {
+      delete inactiveDocs[previous.docId];
+    } else {
+      inactiveDocs[previous.docId] = previous;
+    }
+    delete inactiveDocs[docId];
+
+    const tabs = current.tabs.map((tab) => {
+      if (!options.discardActive && tab.docId === previous.docId) {
+        return tabFromSnapshot(previous);
+      }
+      const snapshot = inactiveDocs[tab.docId];
+      return snapshot ? tabFromSnapshot(snapshot) : tab;
+    });
+
+    if (!options.discardActive) flushDocument(previous);
+
+    clearTimers();
+    layoutGeneration += 1;
+    resetEngine(target.content);
+
+    const saveState: SaveState =
+      target.saveState === 'saving'
+        ? target.dirty
+          ? 'unsaved'
+          : 'saved'
+        : target.saveState;
+
+    set({
+      screen: 'workspace',
+      docId,
+      docPath: target.docPath,
+      docName: target.docName,
+      editorEpoch: current.editorEpoch + 1,
+      content: target.content,
+      savedContent: target.savedContent,
+      parsedContent: '__pending__',
+      eol: target.eol,
+      dirty: target.dirty,
+      db: null,
+      view: target.view,
+      valid: target.valid,
+      problems: target.problems,
+      markers: target.markers,
+      parsing: true,
+      lastParseMs: target.lastParseMs,
+      lastSavedAt: target.lastSavedAt,
+      saveState,
+      layoutBusy: false,
+      selection: target.selection,
+      selectedColumn: target.selectedColumn,
+      cursor: target.cursor,
+      cursorTableKey: target.cursorTableKey,
+      pendingTableSelection: target.pendingTableSelection,
+      pendingColumnSelection: target.pendingColumnSelection,
+      pendingRefSelection: target.pendingRefSelection,
+      layout: target.layout,
+      layoutDirection: target.layoutDirection,
+      viewport: target.viewport,
+      hasSidecar: target.hasSidecar,
+      layoutTouched: target.layoutTouched,
+      zoom: target.zoom,
+      fitSignal: target.viewport ? current.fitSignal : current.fitSignal + 1,
+      tabs,
+      inactiveDocs,
+      unsavedOpen: false,
+      pendingAction: null,
+      contextMenu: null,
+      confirm: null,
+    });
+
+    get().parseNow();
+    if (target.dirty) scheduleRecovery(get);
+    scheduleAutoSave(get);
+  };
+
+  const closeTabNow = (docId: string): void => {
+    const state = get();
+    const index = state.tabs.findIndex((tab) => tab.docId === docId);
+    if (index === -1) return;
+    const remaining = state.tabs.filter((tab) => tab.docId !== docId);
+    const inactiveDocs = { ...state.inactiveDocs };
+    delete inactiveDocs[docId];
+    void platform.discardRecovery(docId).catch(() => undefined);
+    set({
+      tabs: remaining,
+      inactiveDocs,
+      recoveries: get().recoveries.filter((item) => item.docId !== docId),
+    });
+    if (state.docId !== docId) return;
+
+    clearTimers();
+    layoutGeneration += 1;
+    if (remaining.length === 0) {
+      get().resetWorkspace();
+      return;
+    }
+    const next = remaining[Math.min(index, remaining.length - 1)];
+    activateDocument(next.docId, { discardActive: true });
+  };
+
   return {
     ready: false,
     screen: 'welcome',
+    tabs: [],
+    inactiveDocs: {},
     docPath: null,
     docName: '未命名.dbml',
     docId: untitledId(),
@@ -671,30 +935,85 @@ export const useAppStore = create<AppState>()((set, get) => {
     },
 
     newDocument: (templateId = 'blank') => {
-      clearTimers();
-      layoutGeneration += 1;
+      const state = get();
       const template = findTemplate(templateId);
       const content = template.content;
+      const contentDirty = content.length > 0;
+      const reusePristine = isPristineDocument(state);
+
+      let docId: string;
+      let docName: string;
+      let tabs: TabMeta[];
+      let inactiveDocs = state.inactiveDocs;
+
+      if (reusePristine) {
+        docId = state.docId;
+        docName = nextUntitledName(state.tabs, docId);
+        tabs = state.tabs.map((tab) =>
+          tab.docId === docId
+            ? {
+                ...tab,
+                docName,
+                dirty: contentDirty,
+                saveState: contentDirty ? 'unsaved' : 'saved',
+              }
+            : tab,
+        );
+      } else {
+        if (state.screen === 'workspace') {
+          if (parseTimer) {
+            clearTimeout(parseTimer);
+            parseTimer = undefined;
+            get().parseNow();
+          }
+          const previous = snapshotFromState(get());
+          flushDocument(previous);
+          inactiveDocs = { ...inactiveDocs, [previous.docId]: previous };
+          tabs = get().tabs.map((tab) =>
+            tab.docId === previous.docId ? tabFromSnapshot(previous) : tab,
+          );
+        } else {
+          tabs = state.tabs;
+        }
+        docId = untitledId();
+        docName = nextUntitledName(tabs);
+        tabs = [
+          ...tabs,
+          {
+            docId,
+            docPath: null,
+            docName,
+            dirty: contentDirty,
+            saveState: contentDirty ? 'unsaved' : 'saved',
+          },
+        ];
+      }
+
+      clearTimers();
+      layoutGeneration += 1;
       resetEngine(content);
       set({
         screen: 'workspace',
+        tabs,
+        inactiveDocs,
         docPath: null,
-        docName: '未命名.dbml',
-        docId: untitledId(),
+        docName,
+        docId,
         editorEpoch: get().editorEpoch + 1,
         content,
         savedContent: '',
         parsedContent: '__pending__',
         eol: '\n',
-        dirty: content.length > 0,
+        dirty: contentDirty,
         db: null,
         view: EMPTY_VIEW,
         valid: true,
         problems: [],
         markers: [],
         parsing: true,
+        lastParseMs: 0,
         lastSavedAt: null,
-        saveState: content.length > 0 ? 'unsaved' : 'saved',
+        saveState: contentDirty ? 'unsaved' : 'saved',
         selection: null,
         selectedColumn: null,
         layout: {},
@@ -711,24 +1030,18 @@ export const useAppStore = create<AppState>()((set, get) => {
         confirm: null,
         cursor: { line: 1, column: 1 },
         cursorTableKey: null,
+        pendingTableSelection: null,
+        pendingColumnSelection: null,
+        pendingRefSelection: null,
       });
       get().parseNow();
-      scheduleRecovery(get);
+      if (contentDirty) scheduleRecovery(get);
       if (templateId !== 'blank') {
         get().showToast('info', `已从「${template.name}」创建文档`);
       }
     },
 
     requestNew: (templateId = 'blank') => {
-      const state = get();
-      if (state.screen === 'welcome') {
-        get().newDocument(templateId);
-        return;
-      }
-      if (state.dirty) {
-        set({ pendingAction: { type: 'new', templateId }, unsavedOpen: true });
-        return;
-      }
       get().newDocument(templateId);
     },
 
@@ -743,15 +1056,22 @@ export const useAppStore = create<AppState>()((set, get) => {
     },
 
     requestOpen: () => {
-      const state = get();
-      if (state.dirty) {
-        set({ pendingAction: { type: 'open' }, unsavedOpen: true });
-        return;
-      }
       void get().openFileDialog();
     },
 
     openPath: async (path) => {
+      const existing = get().tabs.find(
+        (tab) => tab.docPath && tab.docPath === path,
+      );
+      if (existing) {
+        if (existing.docId !== get().docId) {
+          activateDocument(existing.docId);
+          get().showToast('info', '该文件已在标签页中打开');
+        } else {
+          get().showToast('info', '该文件已经是最前标签页');
+        }
+        return;
+      }
       try {
         const [snapshot, layoutFile] = await Promise.all([
           platform.readTextFile(path),
@@ -771,11 +1091,6 @@ export const useAppStore = create<AppState>()((set, get) => {
     },
 
     requestOpenPath: (path) => {
-      const state = get();
-      if (state.dirty) {
-        set({ pendingAction: { type: 'openPath', path }, unsavedOpen: true });
-        return;
-      }
       void get().openPath(path);
     },
 
@@ -785,9 +1100,12 @@ export const useAppStore = create<AppState>()((set, get) => {
       resetEngine('');
       set({
         screen: 'welcome',
+        tabs: [],
+        inactiveDocs: {},
         docPath: null,
         docName: '未命名.dbml',
         docId: untitledId(),
+        editorEpoch: get().editorEpoch + 1,
         content: '',
         savedContent: '',
         parsedContent: '',
@@ -799,33 +1117,75 @@ export const useAppStore = create<AppState>()((set, get) => {
         problems: [],
         markers: [],
         parsing: false,
+        lastParseMs: 0,
+        lastSavedAt: null,
+        saveState: 'saved',
+        layoutBusy: false,
         selection: null,
         selectedColumn: null,
         layout: {},
         viewport: undefined,
         hasSidecar: false,
         layoutTouched: false,
-        saveState: 'saved',
+        zoom: 1,
         recoveryOpen: false,
         unsavedOpen: false,
         pendingAction: null,
         confirm: null,
         contextMenu: null,
+        cursor: { line: 1, column: 1 },
+        cursorTableKey: null,
+        pendingTableSelection: null,
+        pendingColumnSelection: null,
+        pendingRefSelection: null,
       });
     },
 
-    requestWelcome: () => {
+    activateTab: (docId) => {
+      activateDocument(docId);
+    },
+
+    requestCloseTab: (docId) => {
       const state = get();
-      if (state.dirty) {
+      if (!state.tabs.some((tab) => tab.docId === docId)) return;
+      const dirty =
+        state.docId === docId ? state.dirty : Boolean(state.inactiveDocs[docId]?.dirty);
+      if (!dirty) {
+        closeTabNow(docId);
+        return;
+      }
+      if (state.docId !== docId) activateDocument(docId);
+      set({ pendingAction: { type: 'closeTab', docId }, unsavedOpen: true });
+    },
+
+    requestCloseActiveTab: () => {
+      const state = get();
+      if (state.screen !== 'workspace' || state.tabs.length === 0) {
+        void get().requestCloseWindow();
+        return;
+      }
+      get().requestCloseTab(state.docId);
+    },
+
+    requestWelcome: () => {
+      if (collectDirtyDocIds(get()).length > 0) {
         set({ pendingAction: { type: 'welcome' }, unsavedOpen: true });
         return;
       }
+      const docIds = get().tabs.map((tab) => tab.docId);
+      for (const docId of docIds) {
+        void platform.discardRecovery(docId).catch(() => undefined);
+      }
+      set({
+        recoveries: get().recoveries.filter(
+          (item) => !docIds.includes(item.docId),
+        ),
+      });
       get().resetWorkspace();
     },
 
     requestCloseWindow: async () => {
-      const state = get();
-      if (state.dirty) {
+      if (collectDirtyDocIds(get()).length > 0) {
         set({ pendingAction: { type: 'close' }, unsavedOpen: true });
         return;
       }
@@ -837,8 +1197,7 @@ export const useAppStore = create<AppState>()((set, get) => {
     },
 
     requestQuit: async () => {
-      const state = get();
-      if (state.dirty) {
+      if (collectDirtyDocIds(get()).length > 0) {
         set({ pendingAction: { type: 'quit' }, unsavedOpen: true });
         return;
       }
@@ -847,12 +1206,23 @@ export const useAppStore = create<AppState>()((set, get) => {
 
     performQuit: async () => {
       const state = get();
-      if (state.dirty) {
+      if (collectDirtyDocIds(state).length > 0) {
         set({ pendingAction: { type: 'quit' }, unsavedOpen: true });
         return;
       }
+      const docIds = new Set(state.tabs.map((tab) => tab.docId));
+      if (state.screen === 'workspace') docIds.add(state.docId);
       try {
-        await platform.discardRecovery(state.docId);
+        await Promise.all(
+          [...docIds].map((docId) =>
+            platform.discardRecovery(docId).catch(() => undefined),
+          ),
+        );
+        set({
+          recoveries: get().recoveries.filter(
+            (item) => !docIds.has(item.docId),
+          ),
+        });
       } catch {
         // ignore
       }
@@ -873,35 +1243,60 @@ export const useAppStore = create<AppState>()((set, get) => {
         set({ unsavedOpen: false, pendingAction: null });
         return;
       }
+      const targetIds =
+        pending?.type === 'closeTab'
+          ? [pending.docId]
+          : collectDirtyDocIds(get());
+
       if (choice === 'save') {
-        const saved = await get().save(false);
-        if (!saved) return;
+        for (const docId of targetIds) {
+          if (!get().tabs.some((tab) => tab.docId === docId)) continue;
+          if (get().docId !== docId) activateDocument(docId);
+          const saved = await get().save(false);
+          if (!saved) return;
+        }
       } else {
-        try {
-          await platform.discardRecovery(get().docId);
-        } catch {
-          // ignore
+        for (const docId of targetIds) {
+          try {
+            await platform.discardRecovery(docId);
+          } catch {
+            // ignore
+          }
+        }
+        if (targetIds.length > 0) {
+          set({
+            recoveries: get().recoveries.filter(
+              (item) => !targetIds.includes(item.docId),
+            ),
+          });
         }
       }
+
       set({ unsavedOpen: false, pendingAction: null });
       if (!pending) return;
-      if (pending.type === 'close') {
-        await get().performClose();
-      } else if (pending.type === 'quit') {
-        await get().performQuit();
-      } else if (pending.type === 'new') {
-        get().newDocument(pending.templateId);
-      } else if (pending.type === 'open') {
-        await get().openFileDialog();
-      } else if (pending.type === 'openPath') {
-        await get().openPath(pending.path);
+      if (pending.type === 'closeTab') {
+        closeTabNow(pending.docId);
       } else if (pending.type === 'welcome') {
+        const docIds = get().tabs.map((tab) => tab.docId);
+        for (const docId of docIds) {
+          void platform.discardRecovery(docId).catch(() => undefined);
+        }
+        set({
+          recoveries: get().recoveries.filter(
+            (item) => !docIds.includes(item.docId),
+          ),
+        });
         get().resetWorkspace();
+      } else if (pending.type === 'close' || pending.type === 'quit') {
+        await get().performQuit();
       }
     },
 
     save: async (saveAs = false) => {
       const state = get();
+      const docId = state.docId;
+      const contentSnapshot = state.content;
+      const eol = state.eol;
       let target = state.docPath;
       if (!target || saveAs) {
         const defaultName = platform.pickDefaultSaveName(state.docName);
@@ -912,48 +1307,196 @@ export const useAppStore = create<AppState>()((set, get) => {
           return false;
         }
         if (!target) {
-          set({ saveState: state.dirty ? 'unsaved' : 'saved' });
+          if (get().docId === docId) {
+            set({ saveState: get().dirty ? 'unsaved' : 'saved' });
+          }
           return false;
         }
       }
       if (!target.toLowerCase().endsWith('.dbml')) target = `${target}.dbml`;
-      const oldDocId = state.docId;
-      set({ saveState: 'saving' });
+
+      const conflict = get().tabs.find(
+        (tab) =>
+          tab.docId !== docId &&
+          tab.docPath !== null &&
+          tab.docPath.toLowerCase() === target!.toLowerCase(),
+      );
+      if (conflict) {
+        const current = get();
+        if (current.docId === docId) {
+          set({ saveState: current.dirty ? 'unsaved' : 'saved' });
+        } else {
+          const snapshot = current.inactiveDocs[docId];
+          if (snapshot) {
+            set({
+              inactiveDocs: {
+                ...current.inactiveDocs,
+                [docId]: {
+                  ...snapshot,
+                  saveState: snapshot.dirty ? 'unsaved' : 'saved',
+                },
+              },
+            });
+          }
+        }
+        get().showToast('error', '目标路径已在其他标签页中打开');
+        return false;
+      }
+
+      const layoutSnapshot =
+        state.layoutTouched || Object.keys(state.layout).length > 0
+          ? {
+              layout: state.layout,
+              viewport: state.viewport,
+              layoutDirection: state.layoutDirection,
+            }
+          : null;
+
+      const setDocSaveState = (saveState: SaveState) => {
+        const current = get();
+        if (current.docId === docId) {
+          set({ saveState });
+          return;
+        }
+        const snapshot = current.inactiveDocs[docId];
+        if (!snapshot) return;
+        set({
+          inactiveDocs: {
+            ...current.inactiveDocs,
+            [docId]: { ...snapshot, saveState },
+          },
+          tabs: current.tabs.map((tab) =>
+            tab.docId === docId ? { ...tab, saveState } : tab,
+          ),
+        });
+      };
+
+      setDocSaveState('saving');
       try {
         const result = await platform.writeTextFile(
           target,
-          applyEol(state.content, state.eol),
+          applyEol(contentSnapshot, eol),
           { backup: state.backup },
         );
         const name = platform.baseName(target);
-        set({
-          docPath: target,
-          docName: name,
-          docId: target,
-          savedContent: state.content,
-          dirty: false,
-          saveState: 'saved',
-          lastSavedAt: result.savedAt ?? Date.now(),
-        });
+        const savedAt = result.savedAt ?? Date.now();
+        const current = get();
+        let dirtyNow: boolean | null = null;
+
+        if (current.docId === docId) {
+          dirtyNow = current.content !== contentSnapshot;
+          set({
+            docPath: target,
+            docName: name,
+            savedContent: contentSnapshot,
+            dirty: dirtyNow,
+            saveState: dirtyNow ? 'unsaved' : 'saved',
+            lastSavedAt: savedAt,
+            hasSidecar: current.hasSidecar || Boolean(layoutSnapshot),
+          });
+          set({
+            tabs: get().tabs.map((tab) =>
+              tab.docId === docId
+                ? {
+                    ...tab,
+                    docPath: target,
+                    docName: name,
+                    dirty: dirtyNow!,
+                    saveState: dirtyNow ? 'unsaved' : 'saved',
+                  }
+                : tab,
+            ),
+          });
+        } else {
+          const snapshot = current.inactiveDocs[docId];
+          if (snapshot) {
+            dirtyNow = snapshot.content !== contentSnapshot;
+            set({
+              inactiveDocs: {
+                ...current.inactiveDocs,
+                [docId]: {
+                  ...snapshot,
+                  docPath: target,
+                  docName: name,
+                  savedContent: contentSnapshot,
+                  dirty: dirtyNow,
+                  saveState: dirtyNow ? 'unsaved' : 'saved',
+                  lastSavedAt: savedAt,
+                  hasSidecar: snapshot.hasSidecar || Boolean(layoutSnapshot),
+                },
+              },
+              tabs: current.tabs.map((tab) =>
+                tab.docId === docId
+                  ? {
+                      ...tab,
+                      docPath: target,
+                      docName: name,
+                      dirty: dirtyNow!,
+                      saveState: dirtyNow ? 'unsaved' : 'saved',
+                    }
+                  : tab,
+              ),
+            });
+          }
+        }
+
+        if (dirtyNow === false) {
+          try {
+            await platform.discardRecovery(docId);
+            set({
+              recoveries: get().recoveries.filter((item) => item.docId !== docId),
+            });
+          } catch {
+            // ignore
+          }
+        } else if (dirtyNow) {
+          if (get().docId === docId) {
+            scheduleRecovery(get);
+          } else {
+            const snapshot = get().inactiveDocs[docId];
+            if (snapshot) {
+              void platform
+                .saveRecovery(docId, target, name, snapshot.content)
+                .catch(() => undefined);
+            }
+          }
+        }
+
         try {
           const recent = await platform.touchRecentFile(target, name);
           set({ recent });
         } catch {
           // ignore
         }
-        try {
-          await platform.discardRecovery(oldDocId);
-          set({ recoveries: get().recoveries.filter((item) => item.docId !== oldDocId) });
-        } catch {
-          // ignore
+
+        if (layoutSnapshot) {
+          try {
+            await platform.saveLayout(
+              target,
+              newLayoutFile({ docName: name, ...layoutSnapshot }),
+            );
+            const afterLayout = get();
+            if (afterLayout.docId === docId) {
+              set({ hasSidecar: true });
+            } else if (afterLayout.inactiveDocs[docId]) {
+              set({
+                inactiveDocs: {
+                  ...afterLayout.inactiveDocs,
+                  [docId]: { ...afterLayout.inactiveDocs[docId], hasSidecar: true },
+                },
+              });
+            }
+          } catch (error) {
+            get().showToast('error', `布局保存失败：${errorMessage(error)}`);
+          }
         }
-        if (get().layoutTouched || Object.keys(get().layout).length > 0) {
-          await get().persistLayoutNow();
+
+        if (get().docId === docId || get().inactiveDocs[docId]) {
+          get().showToast('success', '已保存');
         }
-        get().showToast('success', '已保存');
         return true;
       } catch (error) {
-        set({ saveState: 'error' });
+        setDocSaveState('error');
         get().showToast('error', `保存失败：${errorMessage(error)}`);
         return false;
       }
@@ -1037,18 +1580,71 @@ export const useAppStore = create<AppState>()((set, get) => {
       layoutFile: LayoutFile | null;
       docId: string;
     }) => {
-      clearTimers();
-      layoutGeneration += 1;
+      const state = get();
       const content = normalizeEol(options.content);
       const savedContent = normalizeEol(options.savedContent);
-      resetEngine(content);
       const dirty = content !== savedContent;
+      const replacingActive =
+        state.docId === options.docId ||
+        (options.path !== null && state.docPath === options.path);
+      const reusePristine =
+        !replacingActive && isPristineDocument(state);
+
+      if (state.screen === 'workspace' && !replacingActive && !reusePristine) {
+        if (parseTimer) {
+          clearTimeout(parseTimer);
+          parseTimer = undefined;
+          get().parseNow();
+        }
+        const previous = snapshotFromState(get());
+        flushDocument(previous);
+        set({
+          inactiveDocs: { ...get().inactiveDocs, [previous.docId]: previous },
+          tabs: get().tabs.map((tab) =>
+            tab.docId === previous.docId ? tabFromSnapshot(previous) : tab,
+          ),
+        });
+      }
+
+      const current = get();
+      const duplicates = current.tabs.filter(
+        (tab) =>
+          tab.docId === options.docId ||
+          (options.path !== null && tab.docPath === options.path),
+      );
+      const inactiveDocs = { ...current.inactiveDocs };
+      for (const duplicate of duplicates) {
+        delete inactiveDocs[duplicate.docId];
+      }
+      let tabs = current.tabs.filter(
+        (tab) => !duplicates.some((duplicate) => duplicate.docId === tab.docId),
+      );
+      if (reusePristine) {
+        tabs = tabs.filter((tab) => tab.docId !== current.docId);
+        delete inactiveDocs[current.docId];
+        void platform.discardRecovery(current.docId).catch(() => undefined);
+      }
+
+      const newTab: TabMeta = {
+        docId: options.docId,
+        docPath: options.path,
+        docName: options.name,
+        dirty,
+        saveState: dirty ? 'unsaved' : 'saved',
+      };
+      tabs = [...tabs, newTab];
+
+      clearTimers();
+      layoutGeneration += 1;
+      resetEngine(content);
       set({
         screen: 'workspace',
+        tabs,
+        inactiveDocs,
         docPath: options.path,
         docName: options.name,
         docId: options.docId,
-        editorEpoch: get().editorEpoch + 1,
+        editorEpoch: current.editorEpoch + 1,
         content,
         savedContent,
         parsedContent: '__pending__',
@@ -1060,21 +1656,24 @@ export const useAppStore = create<AppState>()((set, get) => {
         problems: [],
         markers: [],
         parsing: true,
+        lastParseMs: 0,
         saveState: dirty ? 'unsaved' : 'saved',
         lastSavedAt: dirty ? null : Date.now(),
+        layoutBusy: false,
         selection: null,
         selectedColumn: null,
         cursor: { line: 1, column: 1 },
         cursorTableKey: null,
         layout: options.layoutFile?.tables ?? {},
-        layoutDirection: options.layoutFile?.layoutDirection ?? get().layoutDirection,
+        layoutDirection:
+          options.layoutFile?.layoutDirection ?? current.layoutDirection,
         viewport: options.layoutFile?.viewport,
         hasSidecar: Boolean(options.layoutFile),
         layoutTouched: Boolean(options.layoutFile),
         zoom: options.layoutFile?.viewport?.zoom ?? 1,
         fitSignal: options.layoutFile?.viewport
-          ? get().fitSignal
-          : get().fitSignal + 1,
+          ? current.fitSignal
+          : current.fitSignal + 1,
         problemsOpen: false,
         recoveryOpen: false,
         unsavedOpen: false,
@@ -1086,7 +1685,20 @@ export const useAppStore = create<AppState>()((set, get) => {
         pendingRefSelection: null,
       });
       get().parseNow();
-      if (dirty) scheduleRecovery(get);
+      if (dirty) {
+        scheduleRecovery(get);
+      } else {
+        try {
+          await platform.discardRecovery(options.docId);
+          set({
+            recoveries: get().recoveries.filter(
+              (item) => item.docId !== options.docId,
+            ),
+          });
+        } catch {
+          // ignore
+        }
+      }
       if (options.path) {
         try {
           const recent = await platform.touchRecentFile(options.path, options.name);
@@ -1622,9 +2234,21 @@ export const useAppStore = create<AppState>()((set, get) => {
       }
       const state = get();
       if (!state.docPath) return;
+      const docId = state.docId;
+      const path = state.docPath;
       try {
-        await platform.saveLayout(state.docPath, newLayoutFile(state));
-        set({ hasSidecar: true });
+        await platform.saveLayout(path, newLayoutFile(state));
+        const current = get();
+        if (current.docId === docId) {
+          set({ hasSidecar: true });
+        } else if (current.inactiveDocs[docId]) {
+          set({
+            inactiveDocs: {
+              ...current.inactiveDocs,
+              [docId]: { ...current.inactiveDocs[docId], hasSidecar: true },
+            },
+          });
+        }
       } catch (error) {
         get().showToast('error', `布局保存失败：${errorMessage(error)}`);
       }

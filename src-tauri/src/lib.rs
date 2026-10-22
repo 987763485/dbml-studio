@@ -488,7 +488,8 @@ fn build_menu(app: &AppHandle) -> tauri::Result<tauri::menu::Menu<tauri::Wry>> {
         .item(&menu_item(app, "save-as", "另存为…", Some("CmdOrCtrl+Shift+S"))?)
         .item(&menu_item(app, "export", "导出…", Some("CmdOrCtrl+E"))?)
         .separator()
-        .item(&menu_item(app, "close", "关闭窗口", Some("CmdOrCtrl+W"))?)
+        .item(&menu_item(app, "close-tab", "关闭标签页", Some("CmdOrCtrl+W"))?)
+        .item(&menu_item(app, "close-window", "关闭窗口", Some("CmdOrCtrl+Shift+W"))?)
         .build()?;
 
     let edit_menu = SubmenuBuilder::new(app, "编辑")

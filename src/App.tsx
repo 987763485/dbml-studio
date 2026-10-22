@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { TitleBar } from './components/TitleBar';
+import { TabBar } from './components/TabBar';
 import { StatusBar } from './components/StatusBar';
 import { ConfirmDialog } from './components/ConfirmDialog';
 import { ContextMenu } from './components/ContextMenu';
@@ -42,6 +43,7 @@ function BootScreen() {
 function WorkspaceShell() {
   return (
     <>
+      <TabBar />
       <Workspace />
       <StatusBar />
     </>
@@ -96,7 +98,11 @@ export default function App() {
   useEffect(() => {
     if (isTauri()) return;
     const onBeforeUnload = (event: BeforeUnloadEvent) => {
-      if (!useAppStore.getState().dirty) return;
+      const state = useAppStore.getState();
+      const dirty =
+        state.dirty ||
+        Object.values(state.inactiveDocs).some((snapshot) => snapshot.dirty);
+      if (!dirty) return;
       event.preventDefault();
       event.returnValue = '';
     };
@@ -132,6 +138,12 @@ export default function App() {
       if (mod && key === 'n') {
         event.preventDefault();
         state.requestNew();
+        return;
+      }
+      if (mod && key === 'w') {
+        event.preventDefault();
+        if (event.shiftKey) void state.requestCloseWindow();
+        else state.requestCloseActiveTab();
         return;
       }
       if (mod && key === 'e') {
@@ -216,7 +228,8 @@ export default function App() {
           else if (action === 'save') void state.save();
           else if (action === 'save-as') void state.saveAs();
           else if (action === 'export') state.setExportOpen(true);
-          else if (action === 'close') void state.requestCloseWindow();
+          else if (action === 'close-tab') state.requestCloseActiveTab();
+          else if (action === 'close-window') void state.requestCloseWindow();
           else if (action === 'quit') void state.requestQuit();
           else if (action === 'undo') editorBridge.undo();
           else if (action === 'redo') editorBridge.redo();
